@@ -602,29 +602,44 @@ const App = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-xs font-bold text-slate-600">Progresso</span>
-                            <span className="text-xs font-bold text-blue-600">{progress.toFixed(1)}%</span>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div className="bg-blue-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Acumulado</div>
+                            <div className="text-lg font-bold text-blue-600 mt-1">{progress.toFixed(0)}%</div>
                           </div>
-                          <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                          <div className="bg-cyan-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
+                            <div className="text-lg font-bold text-cyan-600 mt-1">{formatCurrency(goal.spent || 0)}</div>
+                          </div>
+                          <div className="bg-orange-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
+                            <div className="text-lg font-bold text-orange-600 mt-1">{(100 - progress).toFixed(0)}%</div>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100">
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(goal.spent || 0)}</div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600">Progresso da Meta</span>
+                            <span className="text-xs font-bold text-blue-600">{progress.toFixed(1)}% de {formatCurrency(goal.target)}</span>
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Meta</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(goal.target)}</div>
+                          <div className="w-full h-3.5 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all shadow-lg" style={{ width: `${Math.min(progress, 100)}%` }} />
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(remaining)}</div>
+                          <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold uppercase">
+                            <span>{formatCurrency(goal.spent || 0)}</span>
+                            <span>{formatCurrency(remaining)} faltam</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Meta Total</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(goal.target)}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Restante</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(remaining)}</div>
                           </div>
                         </div>
                       </div>
@@ -681,33 +696,44 @@ const App = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-xs font-bold text-slate-600">Progresso</span>
-                            <span className="text-xs font-bold text-purple-600">{percentage.toFixed(1)}%</span>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div className="bg-purple-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Parcelas</div>
+                            <div className="text-lg font-bold text-purple-600 mt-1">{monthsPaid}/{monthsTotal}</div>
                           </div>
-                          <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                          <div className="bg-emerald-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Pago</div>
+                            <div className="text-lg font-bold text-emerald-600 mt-1">{percentage.toFixed(0)}%</div>
+                          </div>
+                          <div className="bg-rose-50 rounded-lg p-3">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
+                            <div className="text-lg font-bold text-rose-600 mt-1">{(100 - percentage).toFixed(0)}%</div>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-slate-100">
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Pago</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(amountPaid)}</div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600">Progresso de Pagamento</span>
+                            <span className="text-xs font-bold text-purple-600">{percentage.toFixed(1)}% de {formatCurrency(inst.monthlyAmount * monthsTotal)}</span>
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Total</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * monthsTotal)}</div>
+                          <div className="w-full h-3.5 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all shadow-lg" style={{ width: `${Math.min(percentage, 100)}%` }} />
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * (monthsTotal - monthsPaid))}</div>
+                          <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold uppercase">
+                            <span>{formatCurrency(amountPaid)}</span>
+                            <span>{formatCurrency(inst.monthlyAmount * (monthsTotal - monthsPaid))} faltam</span>
                           </div>
-                          <div>
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Período</div>
-                            <div className="text-xs font-bold text-slate-800 mt-1">{monthsTotal}x</div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Total a Pagar</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * monthsTotal)}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Mensal</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount)}</div>
                           </div>
                         </div>
                       </div>
