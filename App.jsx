@@ -44,6 +44,53 @@ const MONTHS = [
 ];
 
 
+// 🛠️ UTILITÁRIOS PARA PARCELAMENTOS
+const calculateInstallmentProgress = (startDate, currentYear, currentMonth) => {
+  const [startYear, startMonth] = startDate.split('-').map(Number);
+  const monthsElapsed = (currentYear - startYear) * 12 + (currentMonth - startMonth);
+  return Math.max(0, monthsElapsed);
+};
+
+const calculateInstallmentMetrics = (inst, year, month) => {
+  const monthlyAmt = parseFloat(inst.monthlyAmount) || 0;
+  const [startYear, startMonth] = inst.startDate.split('-').map(Number);
+  const [endYear, endMonth] = inst.endDate.split('-').map(Number);
+  
+  const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+  const monthsElapsed = (year - startYear) * 12 + (month - startMonth);
+  const monthsPaid = Math.max(0, Math.min(monthsElapsed + 1, totalMonths));
+  const percentage = (monthsPaid / totalMonths) * 100;
+  const amountPaid = monthlyAmt * monthsPaid;
+  const amountRemaining = monthlyAmt * (totalMonths - monthsPaid);
+  const totalAmount = monthlyAmt * totalMonths;
+  
+  return {
+    totalMonths,
+    monthsPaid,
+    percentage,
+    amountPaid,
+    amountRemaining,
+    totalAmount,
+    isActive: month >= startMonth && year >= startYear && month <= endMonth && year <= endYear
+  };
+};
+
+// Função para obter todas as parcelas mensais de um parcelamento
+const getMonthlyInstallmentAmount = (inst, year, month) => {
+  const monthlyAmt = parseFloat(inst.monthlyAmount) || 0;
+  const [startYear, startMonth] = inst.startDate.split('-').map(Number);
+  const [endYear, endMonth] = inst.endDate.split('-').map(Number);
+  
+  const currentMonthDate = year * 12 + month;
+  const startDate = startYear * 12 + startMonth;
+  const endDate = endYear * 12 + endMonth;
+  
+  if (currentMonthDate >= startDate && currentMonthDate <= endDate) {
+    return monthlyAmt;
+  }
+  return 0;
+};
+
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('fin_logged_in') === 'true');
   const [loginPassword, setLoginPassword] = useState('');
@@ -181,6 +228,11 @@ const App = () => {
 
 
   const stats = useMemo(() => {
+    let installmentAmount = 0;
+    installments.forEach(inst => {
+      installmentAmount += getMonthlyInstallmentAmount(inst, year, month);
+    });
+
     return currentEntries.reduce((acc, t) => {
       const val = parseFloat(t.amount) || 0;
       if (t.type === 'ENTRADA') {
@@ -191,8 +243,8 @@ const App = () => {
         if (t.isPaid) acc.realOut += val;
       }
       return acc;
-    }, { totalIn: 0, totalOut: 0, realIn: 0, realOut: 0 });
-  }, [currentEntries]);
+    }, { totalIn: 0, totalOut: 0, realIn: 0, realOut: 0, installmentAmount });
+  }, [currentEntries, installments, year, month]);
 
   // Gastos por categoria
   const expensesByCategory = useMemo(() => {
@@ -375,13 +427,14 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 font-medium">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 font-medium">
               <SummaryCard title="Previsão" value={stats.totalIn - stats.totalOut} subtitle="Total" theme="neutral" location="bolso" />
               <SummaryCard title="Entrada" value={stats.totalIn} subtitle="Receitas" theme="income" location="bolso" />
               <SummaryCard title="Gasto" value={stats.totalOut} subtitle="Despesas" theme="expense" location="bolso" />
+              <SummaryCard title="Parcelas" value={stats.installmentAmount} subtitle="Parcelado" theme="expense" location="bolso" />
               <div className="bg-[#111827] p-4 rounded-2xl shadow-md flex flex-col justify-between border border-slate-800 transition-transform hover:scale-[1.01]">
                 <span className="text-xs font-bold uppercase text-slate-400 tracking-wider leading-none">No Bolso</span>
-                <p className="text-2xl font-bold text-white tracking-tight mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
+                <p className="text-2xl font-bold text-white tracking-tight mt-2">{formatCurrency(stats.realIn - stats.realOut - stats.installmentAmount)}</p>
                 <div className="flex items-center gap-2 mt-3"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /><span className="text-[9px] text-blue-400 uppercase font-bold">Líquido</span></div>
               </div>
             </div>
@@ -564,6 +617,88 @@ const App = () => {
                 </div>
               </div>
             </div>
+
+            {/* RELATÓRIO ENTRADAS E SAÍDAS */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                <TrendingUp size={16} className="text-slate-600" />
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Relatório - Entradas e Saídas</h3>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {/* ENTRADAS */}
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ArrowUp className="text-emerald-500" size={18} />
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Entradas</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Total Entradas</div>
+                      <div className="text-2xl font-bold text-emerald-600 mt-2">{formatCurrency(stats.totalIn)}</div>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Entradas Pagas</div>
+                      <div className="text-2xl font-bold text-emerald-600 mt-2">{formatCurrency(stats.realIn)}</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Pendente</div>
+                      <div className="text-2xl font-bold text-orange-600 mt-2">{formatCurrency(stats.totalIn - stats.realIn)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SAÍDAS */}
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ArrowDown className="text-rose-500" size={18} />
+                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Saídas</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-rose-50 rounded-lg p-4 border border-rose-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Total Saídas</div>
+                      <div className="text-2xl font-bold text-rose-600 mt-2">{formatCurrency(stats.totalOut)}</div>
+                    </div>
+                    <div className="bg-rose-50 rounded-lg p-4 border border-rose-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Saídas Pagas</div>
+                      <div className="text-2xl font-bold text-rose-600 mt-2">{formatCurrency(stats.realOut)}</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+                      <div className="text-[10px] text-slate-600 uppercase font-bold">Pendente</div>
+                      <div className="text-2xl font-bold text-orange-600 mt-2">{formatCurrency(stats.totalOut - stats.realOut)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PARCELAMENTOS DO MÊS */}
+                {stats.installmentAmount > 0 && (
+                  <div className="p-6 bg-purple-50">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Layers className="text-purple-500" size={18} />
+                      <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Parcelamentos - {MONTHS[month-1]}</h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <div className="text-[10px] text-slate-600 uppercase font-bold">Parcelas Este Mês</div>
+                        <div className="text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.installmentAmount)}</div>
+                      </div>
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <div className="text-[10px] text-slate-600 uppercase font-bold">Total com Parcelamentos</div>
+                        <div className="text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalOut + stats.installmentAmount)}</div>
+                      </div>
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <div className="text-[10px] text-slate-600 uppercase font-bold">Saldo Líquido (c/ Parcelas)</div>
+                        <div className={`text-2xl font-bold mt-2 ${stats.totalIn - (stats.totalOut + stats.installmentAmount) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {formatCurrency(stats.totalIn - (stats.totalOut + stats.installmentAmount))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100 text-xs text-slate-600">
+                      <span className="font-bold">Parcelamentos ativos:</span> {activeInstallments.length > 0 ? activeInstallments.map(i => i.description).join(', ') : 'Nenhum'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         ) : view === 'metas' ? (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-4 font-medium">
@@ -650,14 +785,14 @@ const App = () => {
             )}
           </div>
         ) : view === 'parcelado' ? (
-          <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-4 font-medium">
+          <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-4 font-medium">
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl border border-purple-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Parcelamentos</h2>
-                  <p className="text-purple-100 text-sm">Acompanhe suas despesas parceladas</p>
+                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Parcelamentos Ativos</h2>
+                  <p className="text-purple-100 text-sm">Acompanhe suas despesas parceladas e o progresso de cada uma</p>
                 </div>
-                <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="bg-white text-purple-600 font-bold px-4 py-2 rounded-lg hover:bg-purple-50 transition-all active:scale-95 flex items-center gap-2">
+                <button onClick={() => { setEditingItem(null); setShowInstallments(true); }} className="bg-white text-purple-600 font-bold px-4 py-2 rounded-lg hover:bg-purple-50 transition-all active:scale-95 flex items-center gap-2">
                   <Plus size={16} /> Novo Parcelamento
                 </button>
               </div>
@@ -666,80 +801,140 @@ const App = () => {
             {activeInstallments.length === 0 ? (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
                 <Layers size={48} className="mx-auto text-slate-300 mb-4" />
-                <p className="text-slate-400 font-medium">Nenhum parcelamento ativo</p>
+                <p className="text-slate-400 font-medium">Nenhum parcelamento ativo. Clique em "Novo Parcelamento" para começar!</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {activeInstallments.map(inst => {
-                  const [startYear, startMonth, startDay] = inst.startDate.split('-').map(Number);
-                  const [endYear, endMonth, endDay] = inst.endDate.split('-').map(Number);
-                  
-                  const monthsTotal = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-                  const currentMonthIndex = (year - startYear) * 12 + (month - startMonth);
-                  const monthsPaid = Math.max(0, Math.min(currentMonthIndex + 1, monthsTotal));
-                  const percentage = (monthsPaid / monthsTotal) * 100;
-                  const amountPaid = inst.monthlyAmount * monthsPaid;
+                  const metrics = calculateInstallmentMetrics(inst, year, month);
 
                   return (
-                    <div key={inst.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                    <div key={inst.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md transition-all">
+                      {/* HEADER */}
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
-                          <h3 className="text-sm font-bold text-slate-800">{inst.description}</h3>
-                          <div className="flex gap-3 mt-2">
-                            <span className="text-[9px] bg-purple-50 text-purple-600 px-2 py-1 rounded font-bold uppercase tracking-wide">{monthsPaid}/{monthsTotal}</span>
-                            <span className="text-[9px] text-slate-500 font-medium">{formatCurrency(inst.monthlyAmount)}/mês</span>
+                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{inst.description}</h3>
+                          <div className="flex gap-2 mt-2 flex-wrap">
+                            <span className="text-[9px] bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-bold uppercase tracking-tight">
+                              {metrics.monthsPaid}/{metrics.totalMonths} Parcelas
+                            </span>
+                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold uppercase tracking-tight ${metrics.percentage === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {metrics.percentage.toFixed(0)}% Pago
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setEditingItem({...inst, isInstallment: true}); setShowModal(true); }} className="p-1.5 text-slate-300 hover:text-blue-600"><Pencil size={14} /></button>
-                          <button onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))} className="p-1.5 text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                          <button onClick={() => { setEditingItem({...inst, isInstallment: true}); setShowInstallments(true); }} className="p-1.5 text-slate-300 hover:text-blue-600 transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                          <div className="bg-purple-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Parcelas</div>
-                            <div className="text-lg font-bold text-purple-600 mt-1">{monthsPaid}/{monthsTotal}</div>
-                          </div>
-                          <div className="bg-emerald-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Pago</div>
-                            <div className="text-lg font-bold text-emerald-600 mt-1">{percentage.toFixed(0)}%</div>
-                          </div>
-                          <div className="bg-rose-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
-                            <div className="text-lg font-bold text-rose-600 mt-1">{(100 - percentage).toFixed(0)}%</div>
-                          </div>
+                      {/* ESTATÍSTICAS */}
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                          <div className="text-[9px] text-slate-500 uppercase font-bold">Status</div>
+                          <div className="text-lg font-bold text-purple-600 mt-1">{metrics.monthsPaid}/{metrics.totalMonths}</div>
                         </div>
-
-                        <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-xs font-bold text-slate-600">Progresso de Pagamento</span>
-                            <span className="text-xs font-bold text-purple-600">{percentage.toFixed(1)}% de {formatCurrency(inst.monthlyAmount * monthsTotal)}</span>
-                          </div>
-                          <div className="w-full h-3.5 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
-                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all shadow-lg" style={{ width: `${Math.min(percentage, 100)}%` }} />
-                          </div>
-                          <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold uppercase">
-                            <span>{formatCurrency(amountPaid)}</span>
-                            <span>{formatCurrency(inst.monthlyAmount * (monthsTotal - monthsPaid))} faltam</span>
-                          </div>
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                          <div className="text-[9px] text-slate-500 uppercase font-bold">Valor Mensal</div>
+                          <div className="text-sm font-bold text-blue-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(inst.monthlyAmount) || 0)}</div>
                         </div>
+                        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                          <div className="text-[9px] text-slate-500 uppercase font-bold">Total</div>
+                          <div className="text-sm font-bold text-emerald-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.totalAmount)}</div>
+                        </div>
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                          <div className="text-center">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Total a Pagar</div>
-                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * monthsTotal)}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Mensal</div>
-                            <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount)}</div>
-                          </div>
+                      {/* BARRA DE PROGRESSO */}
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Progresso de Pagamento</span>
+                          <span className="text-xs font-bold text-purple-600">{metrics.percentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full h-4 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
+                          <div 
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out shadow-lg" 
+                            style={{ width: `${Math.min(metrics.percentage, 100)}%` }} 
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
+                          <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.amountPaid)} pago</span>
+                          <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.amountRemaining)} restam</span>
+                        </div>
+                      </div>
+
+                      {/* INFORMAÇÕES ADICIONAIS */}
+                      <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <div className="text-[10px] text-slate-500 uppercase font-bold">Início</div>
+                          <div className="text-sm font-bold text-slate-800 mt-1">{new Date(inst.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                        </div>
+                        <div className="bg-slate-50 rounded-lg p-3">
+                          <div className="text-[10px] text-slate-500 uppercase font-bold">Término</div>
+                          <div className="text-sm font-bold text-slate-800 mt-1">{new Date(inst.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* INTEGRAÇÃO COM FLUXO DE CAIXA */}
+            {activeInstallments.length > 0 && (
+              <div className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                  <TrendingDown size={16} className="text-blue-600" />
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Parcelas nos Próximos Meses</h3>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const checkMonth = month + i;
+                    let checkYear = year;
+                    let displayMonth = checkMonth;
+                    
+                    if (checkMonth > 12) {
+                      displayMonth = ((checkMonth - 1) % 12) + 1;
+                      checkYear = year + Math.floor((checkMonth - 1) / 12);
+                    }
+                    
+                    const monthInstallments = activeInstallments.filter(inst => {
+                      const monthAmount = getMonthlyInstallmentAmount(inst, checkYear, displayMonth);
+                      return monthAmount > 0;
+                    });
+                    
+                    if (monthInstallments.length === 0) return null;
+                    
+                    const totalMonthlyInstallment = monthInstallments.reduce((sum, inst) => 
+                      sum + getMonthlyInstallmentAmount(inst, checkYear, displayMonth), 0
+                    );
+
+                    return (
+                      <div key={`${checkYear}-${displayMonth}`} className="px-6 py-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex justify-between items-center mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                              {MONTHS[displayMonth - 1]} {checkYear}
+                            </span>
+                            <span className="text-[9px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">
+                              {monthInstallments.length} {monthInstallments.length === 1 ? 'parcela' : 'parcelas'}
+                            </span>
+                          </div>
+                          <span className="text-sm font-bold text-blue-600">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMonthlyInstallment)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {monthInstallments.map(inst => (
+                            <span key={inst.id} className="text-[10px] bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full font-medium border border-purple-100">
+                              {inst.description}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }).filter(Boolean)}
+                </div>
               </div>
             )}
           </div>
@@ -855,16 +1050,11 @@ const App = () => {
       {/* MODAL PARCELADO */}
       {showInstallments && (
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95 my-8">
-            <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">{editingInstallment ? 'Editar Parcelado' : 'Novo Parcelado'}</h2><button onClick={() => setEditingInstallment(null)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveInstallment(editingInstallment || {}); }} className="space-y-4">
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input type="text" placeholder="Ex: Geladeira, Sofá" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.description || ''} onChange={e => setEditingInstallment({...editingInstallment, description: e.target.value})} required /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data Início</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.startDate || ''} onChange={e => setEditingInstallment({...editingInstallment, startDate: e.target.value})} required /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data Fim</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.endDate || ''} onChange={e => setEditingInstallment({...editingInstallment, endDate: e.target.value})} required /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.monthlyAmount || ''} onChange={e => setEditingInstallment({...editingInstallment, monthlyAmount: parseFloat(e.target.value)})} required /></div>
-              <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-emerald-700 active:scale-95 transition-all">Salvar Parcelado</button>
-            </form>
-          </div>
+          <AdvancedInstallmentModal 
+            item={editingInstallment} 
+            onSave={handleSaveInstallment} 
+            onClose={() => { setEditingInstallment(null); setShowInstallments(false); }} 
+          />
         </div>
       )}
       
@@ -911,5 +1101,221 @@ const SummaryCard = ({ title, value, subtitle, theme, location }) => {
   );
 };
 
+// 🛠️ COMPONENTE MODAL AVANÇADO DE PARCELAMENTO
+const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
+  const [formData, setFormData] = useState(item ? { ...item } : { 
+    description: '', 
+    startDate: '', 
+    endDate: '', 
+    monthlyAmount: '',
+    paymentType: 'parcelado',
+    totalInstallments: '',
+    paymentDay: '01'
+  });
+  
+  const [previewData, setPreviewData] = useState(null);
+
+  // Calcular preview quando o usuário muda os dados
+  useEffect(() => {
+    if (formData.startDate && formData.endDate && formData.monthlyAmount) {
+      const [startYear, startMonth] = formData.startDate.split('-').map(Number);
+      const [endYear, endMonth] = formData.endDate.split('-').map(Number);
+      const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+      const totalValue = formData.monthlyAmount * totalMonths;
+      
+      setPreviewData({
+        totalMonths,
+        totalValue,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        monthlyAmount: formData.monthlyAmount
+      });
+    } else {
+      setPreviewData(null);
+    }
+  }, [formData.startDate, formData.endDate, formData.monthlyAmount]);
+
+  const handleDateChange = (type, value) => {
+    if (type === 'start') {
+      setFormData({ ...formData, startDate: value });
+    } else {
+      setFormData({ ...formData, endDate: value });
+    }
+  };
+
+  const handleInstallmentChange = (numInstallments) => {
+    const monthlyAmt = parseFloat(formData.monthlyAmount) || 0;
+    if (monthlyAmt > 0) {
+      const [startYear, startMonth, startDay] = formData.startDate.split('-');
+      let endMonth = parseInt(startMonth) + (numInstallments - 1);
+      let endYear = parseInt(startYear);
+      
+      while (endMonth > 12) {
+        endMonth -= 12;
+        endYear += 1;
+      }
+      
+      setFormData({
+        ...formData,
+        totalInstallments: numInstallments,
+        endDate: `${endYear}-${String(endMonth).padStart(2, '0')}-${startDay}`
+      });
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+    onClose();
+  };
+
+  return (
+    <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95 my-8 max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">
+          {item ? 'Editar Parcelamento' : 'Novo Parcelamento'}
+        </h2>
+        <button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={24}/></button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* DESCRIÇÃO */}
+        <div className="space-y-2">
+          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição da Compra</label>
+          <input 
+            type="text" 
+            placeholder="Ex: Geladeira, Sofá, TV 55 polegadas" 
+            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+            value={formData.description} 
+            onChange={e => setFormData({...formData, description: e.target.value})} 
+            required 
+          />
+        </div>
+
+        {/* TIPO DE PAGAMENTO */}
+        <div className="space-y-3">
+          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Tipo de Pagamento</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              type="button"
+              onClick={() => setFormData({...formData, paymentType: 'avista'})}
+              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
+                formData.paymentType === 'avista' 
+                  ? 'bg-green-100 border-green-500 text-green-700' 
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              À Vista
+            </button>
+            <button 
+              type="button"
+              onClick={() => setFormData({...formData, paymentType: 'parcelado'})}
+              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
+                formData.paymentType === 'parcelado' 
+                  ? 'bg-purple-100 border-purple-500 text-purple-700' 
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              Parcelado
+            </button>
+          </div>
+        </div>
+
+        {formData.paymentType === 'parcelado' && (
+          <>
+            {/* DATAS */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data de Início</label>
+                <input 
+                  type="date" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  value={formData.startDate} 
+                  onChange={e => handleDateChange('start', e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data de Término</label>
+                <input 
+                  type="date" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  value={formData.endDate} 
+                  onChange={e => handleDateChange('end', e.target.value)} 
+                  required 
+                />
+              </div>
+            </div>
+
+            {/* VALOR MENSAL */}
+            <div className="space-y-2">
+              <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  placeholder="0.00" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 pl-9 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  value={formData.monthlyAmount} 
+                  onChange={e => setFormData({...formData, monthlyAmount: e.target.value})} 
+                  required 
+                />
+              </div>
+            </div>
+
+            {/* ATALHOS DE PARCELAMENTO */}
+            <div className="space-y-3">
+              <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Atalhos Rápidos</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[3, 6, 10, 12].map(months => (
+                  <button
+                    key={months}
+                    type="button"
+                    onClick={() => handleInstallmentChange(months)}
+                    className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs uppercase hover:bg-purple-100 transition-all active:scale-95"
+                  >
+                    {months}x
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* PREVIEW DOS DADOS */}
+            {previewData && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">📊 Resumo do Parcelamento</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">Total de Parcelas</div>
+                    <div className="text-lg font-bold text-purple-600 mt-1">{previewData.totalMonths}x</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Mensal</div>
+                    <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(previewData.monthlyAmount) || 0)}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Total</div>
+                    <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalValue)}</div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-purple-100 text-[11px] text-slate-600 font-medium">
+                  <span>Período: <strong>{new Date(previewData.startDate).toLocaleDateString('pt-BR')}</strong> até <strong>{new Date(previewData.endDate).toLocaleDateString('pt-BR')}</strong></span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <button 
+          type="submit" 
+          className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-purple-700 active:scale-95 transition-all mt-2"
+        >
+          {item ? 'Atualizar Parcelamento' : 'Criar Parcelamento'}
+        </button>
+      </form>
+    </div>
+  );
+};
 
 export default App;
