@@ -225,16 +225,24 @@ const App = () => {
         const monthlyAmt = getMonthlyInstallmentAmount(inst, year, month);
         return monthlyAmt > 0;
       })
-      .map(inst => ({
-        id: `inst-${inst.id}`,
-        desc: inst.description,
-        amount: getMonthlyInstallmentAmount(inst, year, month),
-        type: 'SAIDA',
-        category: 'Parcelado',
-        isPaid: true,
-        isInstallment: true,
-        date: `${year}-${String(month).padStart(2, '0')}-01`
-      }));
+      .map(inst => {
+        const instStatusKey = `inst-status-${inst.id}`;
+        const instPaymentStatus = monthlyData[instStatusKey] || {};
+        const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+        
+        return {
+          id: `inst-${inst.id}`,
+          desc: inst.description,
+          amount: getMonthlyInstallmentAmount(inst, year, month),
+          type: 'SAIDA',
+          category: 'Parcelado',
+          isPaid: instPaymentStatus[monthKey] || false,
+          isInstallment: true,
+          date: `${year}-${String(month).padStart(2, '0')}-01`,
+          instId: inst.id,
+          monthKey: monthKey
+        };
+      });
 
     const all = [...combined, ...specifics, ...installmentEntries];
     if (!searchTerm) return all;
@@ -344,9 +352,25 @@ const App = () => {
   };
 
 
-  const toggleStatus = (id, isRecurrent, tY = year, tM = month) => {
+  const toggleStatus = (id, isRecurrent, tY = year, tM = month, isInstallment = false, monthKey = null) => {
     const key = `${tY}-${tM}`;
-    if (isRecurrent) {
+    
+    // Tratamento especial para parcelas
+    if (isInstallment && monthKey) {
+      const instIdMatch = id.match(/inst-(.+)/);
+      if (instIdMatch) {
+        const instId = instIdMatch[1];
+        const instStatusKey = `inst-status-${instId}`;
+        const instStatus = monthlyData[instStatusKey] || {};
+        setMonthlyData({ 
+          ...monthlyData, 
+          [instStatusKey]: { 
+            ...instStatus, 
+            [monthKey]: !(instStatus[monthKey] || false) 
+          } 
+        });
+      }
+    } else if (isRecurrent) {
       const statusKey = `status-${key}`;
       const cStatus = monthlyData[statusKey] || {};
       setMonthlyData({ ...monthlyData, [statusKey]: { ...cStatus, [id]: !cStatus[id] } });
@@ -527,7 +551,7 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => !t.isInstallment && toggleStatus(t.id, t.isRecurrent)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'} ${t.isInstallment ? 'cursor-default opacity-75' : ''}`}>
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
                               {t.isPaid ? 'OK' : 'Pendente'}
                             </button>
                           </td>
@@ -1045,7 +1069,8 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
     monthlyAmount: '',
     paymentType: 'parcelado',
     totalInstallments: '',
-    paymentDay: '01'
+    paymentDay: '01',
+    customInstallments: [] // Para armazenar valores customizados
   });
   
   const [previewData, setPreviewData] = useState(null);
@@ -1129,19 +1154,8 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
 
         {/* TIPO DE PAGAMENTO */}
         <div className="space-y-3">
-          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Tipo de Pagamento</label>
+          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Tipo de Parcelamento</label>
           <div className="grid grid-cols-2 gap-3">
-            <button 
-              type="button"
-              onClick={() => setFormData({...formData, paymentType: 'avista'})}
-              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
-                formData.paymentType === 'avista' 
-                  ? 'bg-green-100 border-green-500 text-green-700' 
-                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              À Vista
-            </button>
             <button 
               type="button"
               onClick={() => setFormData({...formData, paymentType: 'parcelado'})}
@@ -1151,12 +1165,23 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
-              Parcelado
+              Valores Iguais
+            </button>
+            <button 
+              type="button"
+              onClick={() => setFormData({...formData, paymentType: 'parcelado-outros'})}
+              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
+                formData.paymentType === 'parcelado-outros' 
+                  ? 'bg-indigo-100 border-indigo-500 text-indigo-700' 
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              Valores Outros
             </button>
           </div>
         </div>
 
-        {formData.paymentType === 'parcelado' && (
+        {(formData.paymentType === 'parcelado' || formData.paymentType === 'parcelado-outros') && (
           <>
             {/* DATAS */}
             <div className="grid grid-cols-2 gap-4">
@@ -1183,38 +1208,98 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             </div>
 
             {/* VALOR MENSAL */}
-            <div className="space-y-2">
-              <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  placeholder="0.00" 
-                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 pl-9 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
-                  value={formData.monthlyAmount} 
-                  onChange={e => setFormData({...formData, monthlyAmount: e.target.value})} 
-                  required 
-                />
+            {formData.paymentType === 'parcelado' && (
+              <div className="space-y-2">
+                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00" 
+                    className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 pl-9 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                    value={formData.monthlyAmount} 
+                    onChange={e => setFormData({...formData, monthlyAmount: e.target.value})} 
+                    required 
+                  />
+                </div>
               </div>
+            )}
+
+            {/* VALORES CUSTOMIZADOS (OUTROS) */}
+            {formData.paymentType === 'parcelado-outros' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs uppercase text-slate-400 tracking-wider font-bold">Valores Customizados por Parcela</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newCustom = [...(formData.customInstallments || [])];
+                      newCustom.push('');
+                      setFormData({...formData, customInstallments: newCustom});
+                    }}
+                    className="text-indigo-600 text-xs font-bold uppercase hover:text-indigo-700"
+                  >
+                    + Adicionar
+                  </button>
+                </div>
+                <div className="space-y-2 bg-indigo-50 p-4 rounded-lg border border-indigo-100 max-h-56 overflow-y-auto">
+                  {formData.customInstallments && formData.customInstallments.length > 0 ? (
+                    formData.customInstallments.map((value, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">Parc {idx + 1}:</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            className="w-full bg-white border border-slate-200 rounded-md p-2 pl-16 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
+                            value={value}
+                            onChange={(e) => {
+                              const newCustom = [...formData.customInstallments];
+                              newCustom[idx] = e.target.value;
+                              setFormData({...formData, customInstallments: newCustom});
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCustom = formData.customInstallments.filter((_, i) => i !== idx);
+                            setFormData({...formData, customInstallments: newCustom});
+                          }}
+                          className="p-2 text-slate-300 hover:text-rose-500"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 italic text-center py-4">Clique em "+ Adicionar" para começar</p>
+                  )}
+                </div>
+              </div>
+            )}
             </div>
 
             {/* ATALHOS DE PARCELAMENTO */}
-            <div className="space-y-3">
-              <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Atalhos Rápidos</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[3, 6, 10, 12].map(months => (
-                  <button
-                    key={months}
-                    type="button"
-                    onClick={() => handleInstallmentChange(months)}
-                    className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs uppercase hover:bg-purple-100 transition-all active:scale-95"
-                  >
-                    {months}x
-                  </button>
-                ))}
+            {formData.paymentType === 'parcelado' && (
+              <div className="space-y-3">
+                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Atalhos Rápidos</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[3, 6, 10, 12].map(months => (
+                    <button
+                      key={months}
+                      type="button"
+                      onClick={() => handleInstallmentChange(months)}
+                      className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs uppercase hover:bg-purple-100 transition-all active:scale-95"
+                    >
+                      {months}x
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* PREVIEW DOS DADOS */}
             {previewData && (
