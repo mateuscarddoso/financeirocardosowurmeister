@@ -24,7 +24,12 @@ import {
   CheckSquare,
   Square,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Target,
+  Zap,
+  TrendingUp,
+  TrendingDown,
+  Layers
 } from 'lucide-react';
 
 
@@ -108,6 +113,10 @@ const App = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [showPendencies, setShowPendencies] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [showGoals, setShowGoals] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [showInstallments, setShowInstallments] = useState(false);
+  const [editingInstallment, setEditingInstallment] = useState(null);
 
 
   // Personalização
@@ -127,13 +136,25 @@ const App = () => {
     return saved ? JSON.parse(saved) : INITIAL_MONTHLY_DATA;
   });
 
+  // Metas e Parcelamentos
+  const [goals, setGoals] = useState(() => {
+    const saved = localStorage.getItem('fin_goals_nubank');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [installments, setInstallments] = useState(() => {
+    const saved = localStorage.getItem('fin_installments_nubank');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     localStorage.setItem('fin_rec_nubank', JSON.stringify(recurrentItems));
     localStorage.setItem('fin_mon_nubank', JSON.stringify(monthlyData));
     localStorage.setItem('fin_title_nubank', appTitle);
+    localStorage.setItem('fin_goals_nubank', JSON.stringify(goals));
+    localStorage.setItem('fin_installments_nubank', JSON.stringify(installments));
     if (appLogo) localStorage.setItem('fin_logo_nubank', appLogo);
-  }, [recurrentItems, monthlyData, appTitle, appLogo]);
+  }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments]);
 
 
   const periodKey = `${year}-${month}`;
@@ -172,6 +193,43 @@ const App = () => {
       return acc;
     }, { totalIn: 0, totalOut: 0, realIn: 0, realOut: 0 });
   }, [currentEntries]);
+
+  // Gastos por categoria
+  const expensesByCategory = useMemo(() => {
+    const categoriesMap = {};
+    currentEntries
+      .filter(e => e.type === 'SAIDA')
+      .forEach(e => {
+        if (!categoriesMap[e.category]) {
+          categoriesMap[e.category] = 0;
+        }
+        categoriesMap[e.category] += parseFloat(e.amount) || 0;
+      });
+    return Object.entries(categoriesMap)
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [currentEntries]);
+
+  // Entradas por categoria
+  const incomeByCategory = useMemo(() => {
+    const categoriesMap = {};
+    currentEntries
+      .filter(e => e.type === 'ENTRADA')
+      .forEach(e => {
+        if (!categoriesMap[e.category]) {
+          categoriesMap[e.category] = 0;
+        }
+        categoriesMap[e.category] += parseFloat(e.amount) || 0;
+      });
+    return Object.entries(categoriesMap)
+      .map(([category, value]) => ({ category, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [currentEntries]);
+
+  // Parcelamentos ativos
+  const activeInstallments = useMemo(() => {
+    return installments.filter(inst => inst.endDate >= `${year}-${String(month).padStart(2, '0')}-01`);
+  }, [installments, year, month]);
 
 
   const lastMonthPendencies = useMemo(() => {
@@ -236,6 +294,27 @@ const App = () => {
     else setMonthlyData({ ...monthlyData, [periodKey]: (monthlyData[periodKey] || []).filter(t => t.id !== id) });
   };
 
+  const handleSaveGoal = (goal) => {
+    if (editingGoal) {
+      setGoals(goals.map(g => g.id === editingGoal.id ? { ...goal, id: editingGoal.id } : g));
+    } else {
+      setGoals([...goals, { ...goal, id: `g-${Date.now()}` }]);
+    }
+    setEditingGoal(null);
+  };
+
+  const handleDeleteGoal = (id) => {
+    setGoals(goals.filter(g => g.id !== id));
+  };
+
+  const handleSaveInstallment = (installment) => {
+    if (editingItem?.isInstallment) {
+      setInstallments(installments.map(inst => inst.id === editingItem.id ? { ...installment, id: editingItem.id } : inst));
+    } else if (!editingItem) {
+      setInstallments([...installments, { ...installment, id: `inst-${Date.now()}` }]);
+    }
+  };
+
 
   const bulkTogglePaid = (paid) => {
     const sKey = `status-${periodKey}`;
@@ -275,6 +354,8 @@ const App = () => {
           <div className="flex items-center bg-[#1F2937] p-1 rounded-lg border border-slate-700">
             <button onClick={() => setView('mensal')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'mensal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Gastos</button>
             <button onClick={() => setView('fixos')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'fixos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fixos</button>
+            <button onClick={() => setView('metas')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'metas' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Metas</button>
+            <button onClick={() => setView('parcelado')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'parcelado' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Parcelado</button>
           </div>
 
 
@@ -420,7 +501,222 @@ const App = () => {
                  </div>
               </div>
             </div>
+
+            {/* ANALYTICS: GASTOS E ENTRADAS POR CATEGORIA */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Gastos por Categoria */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 bg-slate-50/50">
+                  <TrendingDown size={16} className="text-rose-500" />
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos por Categoria</h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  {expensesByCategory.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Sem gastos registrados</p>
+                  ) : (
+                    expensesByCategory.map((cat, idx) => {
+                      const total = stats.totalOut || 1;
+                      const percentage = (cat.value / total) * 100;
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-700">{cat.category}</span>
+                            <span className="text-xs font-bold text-rose-500">{percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-rose-500 transition-all" style={{ width: `${percentage}%` }} />
+                          </div>
+                          <div className="text-[10px] text-slate-500">{formatCurrency(cat.value)}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Entradas por Categoria */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 bg-slate-50/50">
+                  <TrendingUp size={16} className="text-emerald-500" />
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Entradas por Categoria</h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  {incomeByCategory.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Sem entradas registradas</p>
+                  ) : (
+                    incomeByCategory.map((cat, idx) => {
+                      const total = stats.totalIn || 1;
+                      const percentage = (cat.value / total) * 100;
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-700">{cat.category}</span>
+                            <span className="text-xs font-bold text-emerald-600">{percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${percentage}%` }} />
+                          </div>
+                          <div className="text-[10px] text-slate-500">{formatCurrency(cat.value)}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
           </>
+        ) : view === 'metas' ? (
+          <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-4 font-medium">
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl border border-blue-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Minhas Metas</h2>
+                  <p className="text-blue-100 text-sm">Defina metas e acompanhe seu progresso</p>
+                </div>
+                <button onClick={() => { setEditingGoal(null); setShowGoals(true); }} className="bg-white text-blue-600 font-bold px-4 py-2 rounded-lg hover:bg-blue-50 transition-all active:scale-95 flex items-center gap-2">
+                  <Plus size={16} /> Nova Meta
+                </button>
+              </div>
+            </div>
+
+            {goals.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                <Target size={48} className="mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-400 font-medium">Nenhuma meta criada. Clique em "Nova Meta" para começar!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {goals.map(goal => {
+                  const progress = (goal.spent || 0) / goal.target * 100;
+                  const remaining = Math.max(0, goal.target - (goal.spent || 0));
+                  return (
+                    <div key={goal.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{goal.name}</h3>
+                          <p className="text-[10px] text-slate-500 mt-1">{goal.description || 'Sem descrição'}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditingGoal(goal); setShowGoals(true); }} className="p-1.5 text-slate-300 hover:text-blue-600"><Pencil size={14} /></button>
+                          <button onClick={() => handleDeleteGoal(goal.id)} className="p-1.5 text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600">Progresso</span>
+                            <span className="text-xs font-bold text-blue-600">{progress.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-100">
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(goal.spent || 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Meta</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(goal.target)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(remaining)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : view === 'parcelado' ? (
+          <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-4 font-medium">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl border border-purple-500">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Parcelamentos</h2>
+                  <p className="text-purple-100 text-sm">Acompanhe suas despesas parceladas</p>
+                </div>
+                <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="bg-white text-purple-600 font-bold px-4 py-2 rounded-lg hover:bg-purple-50 transition-all active:scale-95 flex items-center gap-2">
+                  <Plus size={16} /> Novo Parcelamento
+                </button>
+              </div>
+            </div>
+
+            {activeInstallments.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                <Layers size={48} className="mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-400 font-medium">Nenhum parcelamento ativo</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activeInstallments.map(inst => {
+                  const [startYear, startMonth, startDay] = inst.startDate.split('-').map(Number);
+                  const [endYear, endMonth, endDay] = inst.endDate.split('-').map(Number);
+                  
+                  const monthsTotal = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+                  const currentMonthIndex = (year - startYear) * 12 + (month - startMonth);
+                  const monthsPaid = Math.max(0, Math.min(currentMonthIndex + 1, monthsTotal));
+                  const percentage = (monthsPaid / monthsTotal) * 100;
+                  const amountPaid = inst.monthlyAmount * monthsPaid;
+
+                  return (
+                    <div key={inst.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-bold text-slate-800">{inst.description}</h3>
+                          <div className="flex gap-3 mt-2">
+                            <span className="text-[9px] bg-purple-50 text-purple-600 px-2 py-1 rounded font-bold uppercase tracking-wide">{monthsPaid}/{monthsTotal}</span>
+                            <span className="text-[9px] text-slate-500 font-medium">{formatCurrency(inst.monthlyAmount)}/mês</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => { setEditingItem({...inst, isInstallment: true}); setShowModal(true); }} className="p-1.5 text-slate-300 hover:text-blue-600"><Pencil size={14} /></button>
+                          <button onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))} className="p-1.5 text-slate-300 hover:text-rose-500"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-600">Progresso</span>
+                            <span className="text-xs font-bold text-purple-600">{percentage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-slate-100">
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Pago</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(amountPaid)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Total</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * monthsTotal)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{formatCurrency(inst.monthlyAmount * (monthsTotal - monthsPaid))}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-slate-500 uppercase font-bold">Período</div>
+                            <div className="text-xs font-bold text-slate-800 mt-1">{monthsTotal}x</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="animate-in fade-in duration-500 max-w-2xl mx-auto space-y-4 font-medium">
              <div className="bg-[#111827] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-slate-800">
@@ -511,6 +807,38 @@ const App = () => {
       {showModal && (
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <ModalContent item={editingItem} isRecurrentView={view === 'fixos'} onSave={handleSave} onClose={closeModal} />
+        </div>
+      )}
+
+      {/* MODAL METAS */}
+      {showGoals && (
+        <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">{editingGoal ? 'Editar Meta' : 'Nova Meta'}</h2><button onClick={() => setEditingGoal(null)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveGoal(editingGoal || {}); }} className="space-y-4">
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Nome da Meta</label><input type="text" placeholder="Ex: Viagem, Carro" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.name || ''} onChange={e => setEditingGoal({...editingGoal, name: e.target.value})} required /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input type="text" placeholder="Detalhes da meta" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.description || ''} onChange={e => setEditingGoal({...editingGoal, description: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Meta</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.target || ''} onChange={e => setEditingGoal({...editingGoal, target: parseFloat(e.target.value)})} required /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor Acumulado</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.spent || ''} onChange={e => setEditingGoal({...editingGoal, spent: parseFloat(e.target.value)})} /></div>
+              <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all">Salvar Meta</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARCELADO */}
+      {showInstallments && (
+        <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95 my-8">
+            <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">{editingInstallment ? 'Editar Parcelado' : 'Novo Parcelado'}</h2><button onClick={() => setEditingInstallment(null)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveInstallment(editingInstallment || {}); }} className="space-y-4">
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input type="text" placeholder="Ex: Geladeira, Sofá" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.description || ''} onChange={e => setEditingInstallment({...editingInstallment, description: e.target.value})} required /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data Início</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.startDate || ''} onChange={e => setEditingInstallment({...editingInstallment, startDate: e.target.value})} required /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data Fim</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.endDate || ''} onChange={e => setEditingInstallment({...editingInstallment, endDate: e.target.value})} required /></div>
+              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingInstallment?.monthlyAmount || ''} onChange={e => setEditingInstallment({...editingInstallment, monthlyAmount: parseFloat(e.target.value)})} required /></div>
+              <button type="submit" className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-emerald-700 active:scale-95 transition-all">Salvar Parcelado</button>
+            </form>
+          </div>
         </div>
       )}
       
