@@ -212,7 +212,6 @@ const App = () => {
     const statusKey = `status-${periodKey}`;
     const paymentStatus = monthlyData[statusKey] || {};
 
-
     const combined = recurrentItems.map(r => ({
       ...r,
       isPaid: paymentStatus[r.id] || false,
@@ -220,11 +219,27 @@ const App = () => {
       date: `${year}-${String(month).padStart(2, '0')}-${String(r.dueDay || '01').padStart(2, '0')}`
     }));
 
+    // Adicionar parcelas como transações
+    const installmentEntries = installments
+      .filter(inst => {
+        const monthlyAmt = getMonthlyInstallmentAmount(inst, year, month);
+        return monthlyAmt > 0;
+      })
+      .map(inst => ({
+        id: `inst-${inst.id}`,
+        desc: inst.description,
+        amount: getMonthlyInstallmentAmount(inst, year, month),
+        type: 'SAIDA',
+        category: 'Parcelado',
+        isPaid: true,
+        isInstallment: true,
+        date: `${year}-${String(month).padStart(2, '0')}-01`
+      }));
 
-    const all = [...combined, ...specifics];
+    const all = [...combined, ...specifics, ...installmentEntries];
     if (!searchTerm) return all;
     return all.filter(i => i.desc.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [recurrentItems, monthlyData, periodKey, searchTerm, year, month]);
+  }, [recurrentItems, monthlyData, periodKey, searchTerm, year, month, installments]);
 
 
   const stats = useMemo(() => {
@@ -427,14 +442,13 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 font-medium">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 font-medium">
               <SummaryCard title="Previsão" value={stats.totalIn - stats.totalOut} subtitle="Total" theme="neutral" location="bolso" />
               <SummaryCard title="Entrada" value={stats.totalIn} subtitle="Receitas" theme="income" location="bolso" />
               <SummaryCard title="Gasto" value={stats.totalOut} subtitle="Despesas" theme="expense" location="bolso" />
-              <SummaryCard title="Parcelas" value={stats.installmentAmount} subtitle="Parcelado" theme="expense" location="bolso" />
               <div className="bg-[#111827] p-4 rounded-2xl shadow-md flex flex-col justify-between border border-slate-800 transition-transform hover:scale-[1.01]">
                 <span className="text-xs font-bold uppercase text-slate-400 tracking-wider leading-none">No Bolso</span>
-                <p className="text-2xl font-bold text-white tracking-tight mt-2">{formatCurrency(stats.realIn - stats.realOut - stats.installmentAmount)}</p>
+                <p className="text-2xl font-bold text-white tracking-tight mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
                 <div className="flex items-center gap-2 mt-3"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /><span className="text-[9px] text-blue-400 uppercase font-bold">Líquido</span></div>
               </div>
             </div>
@@ -513,7 +527,7 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => toggleStatus(t.id, t.isRecurrent)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
+                            <button onClick={() => !t.isInstallment && toggleStatus(t.id, t.isRecurrent)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'} ${t.isInstallment ? 'cursor-default opacity-75' : ''}`}>
                               {t.isPaid ? 'OK' : 'Pendente'}
                             </button>
                           </td>
@@ -522,6 +536,7 @@ const App = () => {
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
                               </div>
                               <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.category} • {t.date ? new Date(t.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : '--/--'}</span>
                             </div>
@@ -532,10 +547,12 @@ const App = () => {
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-center">
-                             <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                                <button onClick={() => { setEditingItem(t); setShowModal(true); }} className="p-1 text-slate-300 hover:text-blue-600"><Pencil size={14}/></button>
-                                <button onClick={() => deleteItem(t.id, t.isRecurrent)} className="p-1 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
-                             </div>
+                             {!t.isInstallment && (
+                               <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => { setEditingItem(t); setShowModal(true); }} className="p-1 text-slate-300 hover:text-blue-600"><Pencil size={14}/></button>
+                                  <button onClick={() => deleteItem(t.id, t.isRecurrent)} className="p-1 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
+                               </div>
+                             )}
                           </td>
                         </tr>
                       ))
@@ -615,88 +632,6 @@ const App = () => {
                     })
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* RELATÓRIO ENTRADAS E SAÍDAS */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                <TrendingUp size={16} className="text-slate-600" />
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Relatório - Entradas e Saídas</h3>
-              </div>
-              <div className="divide-y divide-slate-50">
-                {/* ENTRADAS */}
-                <div className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ArrowUp className="text-emerald-500" size={18} />
-                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Entradas</h4>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Total Entradas</div>
-                      <div className="text-2xl font-bold text-emerald-600 mt-2">{formatCurrency(stats.totalIn)}</div>
-                    </div>
-                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Entradas Pagas</div>
-                      <div className="text-2xl font-bold text-emerald-600 mt-2">{formatCurrency(stats.realIn)}</div>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Pendente</div>
-                      <div className="text-2xl font-bold text-orange-600 mt-2">{formatCurrency(stats.totalIn - stats.realIn)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SAÍDAS */}
-                <div className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <ArrowDown className="text-rose-500" size={18} />
-                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Saídas</h4>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-rose-50 rounded-lg p-4 border border-rose-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Total Saídas</div>
-                      <div className="text-2xl font-bold text-rose-600 mt-2">{formatCurrency(stats.totalOut)}</div>
-                    </div>
-                    <div className="bg-rose-50 rounded-lg p-4 border border-rose-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Saídas Pagas</div>
-                      <div className="text-2xl font-bold text-rose-600 mt-2">{formatCurrency(stats.realOut)}</div>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
-                      <div className="text-[10px] text-slate-600 uppercase font-bold">Pendente</div>
-                      <div className="text-2xl font-bold text-orange-600 mt-2">{formatCurrency(stats.totalOut - stats.realOut)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* PARCELAMENTOS DO MÊS */}
-                {stats.installmentAmount > 0 && (
-                  <div className="p-6 bg-purple-50">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Layers className="text-purple-500" size={18} />
-                      <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Parcelamentos - {MONTHS[month-1]}</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-white rounded-lg p-4 border border-purple-100">
-                        <div className="text-[10px] text-slate-600 uppercase font-bold">Parcelas Este Mês</div>
-                        <div className="text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.installmentAmount)}</div>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 border border-purple-100">
-                        <div className="text-[10px] text-slate-600 uppercase font-bold">Total com Parcelamentos</div>
-                        <div className="text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalOut + stats.installmentAmount)}</div>
-                      </div>
-                      <div className="bg-white rounded-lg p-4 border border-purple-100">
-                        <div className="text-[10px] text-slate-600 uppercase font-bold">Saldo Líquido (c/ Parcelas)</div>
-                        <div className={`text-2xl font-bold mt-2 ${stats.totalIn - (stats.totalOut + stats.installmentAmount) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {formatCurrency(stats.totalIn - (stats.totalOut + stats.installmentAmount))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 p-3 bg-white rounded-lg border border-purple-100 text-xs text-slate-600">
-                      <span className="font-bold">Parcelamentos ativos:</span> {activeInstallments.length > 0 ? activeInstallments.map(i => i.description).join(', ') : 'Nenhum'}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </>
