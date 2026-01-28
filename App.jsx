@@ -458,13 +458,27 @@ const App = () => {
         const instId = instIdMatch[1];
         const instStatusKey = `inst-status-${instId}`;
         const instStatus = monthlyData[instStatusKey] || {};
+        const wasPaid = instStatus[monthKey] || false;
+        const willBePaid = !wasPaid;
+        
+        // Atualizar status do mês
         setMonthlyData({ 
           ...monthlyData, 
           [instStatusKey]: { 
             ...instStatus, 
-            [monthKey]: !(instStatus[monthKey] || false) 
+            [monthKey]: willBePaid
           } 
         });
+        
+        // Atualizar installmentsPaid no objeto installment
+        setInstallments(installments.map(inst => {
+          if (inst.id === instId) {
+            const change = willBePaid ? 1 : -1;
+            const newPaidCount = Math.max(0, (inst.installmentsPaid || 0) + change);
+            return { ...inst, installmentsPaid: newPaidCount };
+          }
+          return inst;
+        }));
       }
     } else if (isRecurrent) {
       const statusKey = `status-${key}`;
