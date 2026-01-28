@@ -31,8 +31,10 @@ import {
   TrendingDown,
   Layers,
   Download,
-  FileUp
+  FileUp,
+  HardDrive
 } from 'lucide-react';
+import { initIndexedDB, saveToIndexedDB, getFromIndexedDB, loadDataWithFallback, getStorageSize, STORES } from './src/indexedDBService';
 
 // --- SISTEMA TOTALMENTE ZERADO ---
 const DEFAULT_RECURRENT = [];
@@ -300,6 +302,8 @@ const App = () => {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [recoveryData, setRecoveryData] = useState('');
   const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [isLoadingData, setIsLoadingData] = useState(true); // Estado de carregamento
+  const [storageInfo, setStorageInfo] = useState(null); // Informações de armazenamento
 
 
   // Personalização
@@ -320,33 +324,57 @@ const App = () => {
     return isNaN(v) ? 30 : v;
   });
 
-  // Armazenamento
-  const [recurrentItems, setRecurrentItems] = useState(() => {
-    const saved = localStorage.getItem('fin_rec_nubank');
-    return saved ? JSON.parse(saved) : DEFAULT_RECURRENT;
-  });
-
-
-  const [monthlyData, setMonthlyData] = useState(() => {
-    const saved = localStorage.getItem('fin_mon_nubank');
-    return saved ? JSON.parse(saved) : INITIAL_MONTHLY_DATA;
-  });
+  // Armazenamento - Valores iniciais vazios, serão carregados do IndexedDB
+  const [recurrentItems, setRecurrentItems] = useState(DEFAULT_RECURRENT);
+  const [monthlyData, setMonthlyData] = useState(INITIAL_MONTHLY_DATA);
 
   // Metas e Parcelamentos
-  const [goals, setGoals] = useState(() => {
-    const saved = localStorage.getItem('fin_goals_nubank');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [goals, setGoals] = useState([]);
+  const [installments, setInstallments] = useState([]);
 
-  const [installments, setInstallments] = useState(() => {
-    const saved = localStorage.getItem('fin_installments_nubank');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // 🔄 Sincronização robusta com localStorage
+  // 🔄 Inicializar IndexedDB e carregar dados na montagem
   useEffect(() => {
-    const saveData = () => {
+    const loadData = async () => {
       try {
+        console.log('📦 Inicializando IndexedDB...');
+        await initIndexedDB();
+
+        // Carregar dados com fallback automático
+        const loadedMonthlyData = await loadDataWithFallback('fin_mon_nubank', INITIAL_MONTHLY_DATA);
+        const loadedRecurrentItems = await loadDataWithFallback('fin_rec_nubank', DEFAULT_RECURRENT);
+        const loadedGoals = await loadDataWithFallback('fin_goals_nubank', []);
+        const loadedInstallments = await loadDataWithFallback('fin_installments_nubank', []);
+
+        setMonthlyData(loadedMonthlyData);
+        setRecurrentItems(Array.isArray(loadedRecurrentItems) ? loadedRecurrentItems : DEFAULT_RECURRENT);
+        setGoals(Array.isArray(loadedGoals) ? loadedGoals : []);
+        setInstallments(Array.isArray(loadedInstallments) ? loadedInstallments : []);
+
+        // Obter informações de armazenamento
+        const storage = await getStorageSize();
+        if (storage) {
+          setStorageInfo(storage);
+          console.log(`💾 Armazenamento: ${storage.percentUsed}% utilizado`);
+        }
+
+        setIsLoadingData(false);
+        console.log('✅ Dados carregados com sucesso');
+      } catch (err) {
+        console.error('❌ Erro ao carregar dados:', err);
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, []); // Executar apenas uma vez na montagem
+
+  // 🔄 Sincronização robusta com localStorage E IndexedDB
+  useEffect(() => {
+    if (isLoadingData) return; // Não salvar enquanto carregando
+    
+    const saveData = async () => {
+      try {
+        // Salvar em ambos os locais
         localStorage.setItem('fin_rec_nubank', JSON.stringify(recurrentItems));
         localStorage.setItem('fin_mon_nubank', JSON.stringify(monthlyData));
         localStorage.setItem('fin_title_nubank', appTitle);
@@ -357,13 +385,21 @@ const App = () => {
         localStorage.setItem('fin_auto_backup_download', autoBackupDownload ? 'true' : 'false');
         localStorage.setItem('fin_auto_backup_interval', String(autoBackupIntervalMins));
         localStorage.setItem('fin_last_save', new Date().toISOString());
+
+        // Salvar em IndexedDB também (persistência superior)
+        await saveToIndexedDB(STORES.monthlyData, 'fin_mon_nubank', monthlyData);
+        await saveToIndexedDB(STORES.recurrentItems, 'fin_rec_nubank', recurrentItems);
+        await saveToIndexedDB(STORES.goals, 'fin_goals_nubank', goals);
+        await saveToIndexedDB(STORES.installments, 'fin_installments_nubank', installments);
+        
+        console.log('💾 Dados sincronizados com IndexedDB e localStorage');
       } catch (err) {
         console.error('Erro ao salvar dados:', err);
       }
     };
 
     saveData();
-  }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments, autoBackupEnabled, autoBackupDownload, autoBackupIntervalMins]);
+  }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments, autoBackupEnabled, autoBackupDownload, autoBackupIntervalMins, isLoadingData]);
 
   // 🔒 Salva dados quando o usuário sai da página (beforeunload)
   useEffect(() => {
@@ -734,6 +770,23 @@ const App = () => {
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  // Tela de carregamento enquanto dados estão sendo recuperados
+  if (isLoadingData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#111827] to-[#0F172A] flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center mb-6">
+            <div className="bg-blue-600 p-4 rounded-2xl animate-pulse">
+              <HardDrive size={32} className="text-white" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Carregando seus dados...</h1>
+          <p className="text-slate-400 text-sm">Restaurando informações do armazenamento permanente</p>
+          <div className="mt-8 w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F3F5F7] text-[#1A1D21] font-sans antialiased pb-10 tracking-tight">

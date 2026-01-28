@@ -1,0 +1,218 @@
+{
+  "recurrentItems": [],
+  "monthlyData": {
+    "2026-01-09": [
+      {
+        "id": "s-1-ipva",
+        "type": "SAIDA",
+        "desc": "IPVA 1/5",
+        "category": "Impostos",
+        "amount": 171.43,
+        "date": "2026-01-09",
+        "isPaid": true
+      }
+    ],
+    "2026-01-10": [
+      {
+        "id": "s-2-internet",
+        "type": "SAIDA",
+        "desc": "INTERNET",
+        "category": "Utilidades",
+        "amount": 119.90,
+        "date": "2026-01-10",
+        "isPaid": true
+      },
+      {
+        "id": "s-3-luz",
+        "type": "SAIDA",
+        "desc": "LUZ",
+        "category": "Utilidades",
+        "amount": 222.37,
+        "date": "2026-01-10",
+        "isPaid": true
+      },
+      {
+        "id": "s-4-agua",
+        "type": "SAIDA",
+        "desc": "AGUA",
+        "category": "Utilidades",
+        "amount": 68.40,
+        "date": "2026-01-10",
+        "isPaid": true
+      }
+    ],
+    "2026-01-12": [
+      {
+        "id": "s-5-carro",
+        "type": "SAIDA",
+        "desc": "CARRO",
+        "category": "Transporte",
+        "amount": 1500.00,
+        "date": "2026-01-12",
+        "isPaid": true
+      }
+    ],
+    "2026-01-15": [
+      {
+        "id": "s-6-cartao-porto",
+        "type": "SAIDA",
+        "desc": "CARTAO PORTO",
+        "category": "Cartão de Crédito",
+        "amount": 7270.52,
+        "date": "2026-01-15",
+        "isPaid": true
+      },
+      {
+        "id": "s-7-cartao-itau",
+        "type": "SAIDA",
+        "desc": "CARTAO ITAU",
+        "category": "Cartão de Crédito",
+        "amount": 3370.97,
+        "date": "2026-01-15",
+        "isPaid": true
+      },
+      {
+        "id": "s-8-ferias",
+        "type": "SAIDA",
+        "desc": "FERIAS 1/6",
+        "category": "Parcelado",
+        "amount": 441.44,
+        "date": "2026-01-15",
+        "isPaid": true
+      },
+      {
+        "id": "s-9-casamento",
+        "type": "SAIDA",
+        "desc": "CASAMENTO 10/36",
+        "category": "Parcelado",
+        "amount": 2722.19,
+        "date": "2026-01-15",
+        "isPaid": true
+      },
+      {
+        "id": "s-10-parcela-pai",
+        "type": "SAIDA",
+        "desc": "PARCELA PAI 4/5",
+        "category": "Parcelado",
+        "amount": 669.73,
+        "date": "2026-01-15",
+        "isPaid": true
+      },
+      {
+        "id": "s-11-sara",
+        "type": "SAIDA",
+        "desc": "SARA",
+        "category": "Outros",
+        "amount": 200.00,
+        "date": "2026-01-15",
+        "isPaid": true
+      }
+    ],
+    "2026-01-21": [
+      {
+        "id": "s-12-aluguel",
+        "type": "SAIDA",
+        "desc": "ALUGUEL",
+        "category": "Aluguel",
+        "amount": 3145.00,
+        "date": "2026-01-21",
+        "isPaid": true
+      }
+    ],
+    "2026-01-01": [
+      {
+        "id": "e-1-salario-djeni",
+        "type": "ENTRADA",
+        "desc": "SALARIO DJENI",
+        "category": "Salário",
+        "amount": 7512.00,
+        "date": "2026-01-01",
+        "isPaid": true
+      },
+      {
+        "id": "e-2-comissao-djeni",
+        "type": "ENTRADA",
+        "desc": "COMISSAO DJENI",
+        "category": "Comissão",
+        "amount": 1000.00,
+        "date": "2026-01-01",
+        "isPaid": true
+      },
+      {
+        "id": "e-3-salario-mat",
+        "type": "ENTRADA",
+        "desc": "SALARIO MAT",
+        "category": "Salário",
+        "amount": 6212.00,
+        "date": "2026-01-01",
+        "isPaid": true
+      },
+      {
+        "id": "e-4-comissao-mat",
+        "type": "ENTRADA",
+        "desc": "COMISSAO MAT",
+        "category": "Comissão",
+        "amount": 1500.00,
+        "date": "2026-01-01",
+        "isPaid": true
+      }
+    ],
+    "2026-01-31": [
+      {
+        "id": "s-13-tim",
+        "type": "SAIDA",
+        "desc": "TIM",
+        "category": "Telefone",
+        "amount": 134.92,
+        "date": "2026-01-31",
+        "isPaid": true
+      },
+      {
+        "id": "s-14-licenciamento",
+        "type": "SAIDA",
+        "desc": "LICENCIAMENTO 12/01",
+        "category": "Transporte",
+        "amount": 423.25,
+        "date": "2026-01-31",
+        "isPaid": true
+      }
+    ]
+  },
+  "goals": [],
+  "installments": [
+    {
+      "id": "inst-ferias-6meses",
+      "description": "FERIAS 1/6",
+      "startDate": "2026-01-15",
+      "endDate": "2026-06-15",
+      "monthlyAmount": 441.44,
+      "category": "Férias"
+    },
+    {
+      "id": "inst-casamento-36meses",
+      "description": "CASAMENTO 10/36",
+      "startDate": "2025-04-15",
+      "endDate": "2028-03-15",
+      "monthlyAmount": 2722.19,
+      "category": "Casamento"
+    },
+    {
+      "id": "inst-parcela-pai-5meses",
+      "description": "PARCELA PAI 4/5",
+      "startDate": "2025-10-15",
+      "endDate": "2026-02-15",
+      "monthlyAmount": 669.73,
+      "category": "Pessoal"
+    },
+    {
+      "id": "inst-ipva-5meses",
+      "description": "IPVA 1/5",
+      "startDate": "2026-01-09",
+      "endDate": "2026-05-09",
+      "monthlyAmount": 171.43,
+      "category": "Transporte"
+    }
+  ],
+  "appTitle": "Meu Controle",
+  "exportedAt": "2026-01-28T00:00:00.000Z"
+}
