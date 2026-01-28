@@ -340,10 +340,36 @@ const App = () => {
         await initIndexedDB();
 
         // Carregar dados com fallback automático
-        const loadedMonthlyData = await loadDataWithFallback('fin_mon_nubank', INITIAL_MONTHLY_DATA);
-        const loadedRecurrentItems = await loadDataWithFallback('fin_rec_nubank', DEFAULT_RECURRENT);
-        const loadedGoals = await loadDataWithFallback('fin_goals_nubank', []);
-        const loadedInstallments = await loadDataWithFallback('fin_installments_nubank', []);
+        let loadedMonthlyData = await loadDataWithFallback('fin_mon_nubank', INITIAL_MONTHLY_DATA);
+        let loadedRecurrentItems = await loadDataWithFallback('fin_rec_nubank', DEFAULT_RECURRENT);
+        let loadedGoals = await loadDataWithFallback('fin_goals_nubank', []);
+        let loadedInstallments = await loadDataWithFallback('fin_installments_nubank', []);
+
+        // Se os dados estão vazios, tentar carregar do arquivo seus_dados_janeiro.json
+        if (Object.keys(loadedMonthlyData).length === 0 && loadedRecurrentItems.length === 0) {
+          console.log('📥 Dados vazios! Tentando carregar seus_dados_janeiro.json...');
+          try {
+            const response = await fetch('./seus_dados_janeiro.json');
+            if (response.ok) {
+              const defaultData = await response.json();
+              if (defaultData.monthlyData) {
+                loadedMonthlyData = defaultData.monthlyData;
+                console.log('✅ Dados de janeiro carregados!');
+              }
+              if (defaultData.recurrentItems) {
+                loadedRecurrentItems = defaultData.recurrentItems;
+              }
+              if (defaultData.goals) {
+                loadedGoals = defaultData.goals;
+              }
+              if (defaultData.installments) {
+                loadedInstallments = defaultData.installments;
+              }
+            }
+          } catch (err) {
+            console.error('⚠️ Não conseguiu carregar dados de janeiro:', err);
+          }
+        }
 
         setMonthlyData(loadedMonthlyData);
         setRecurrentItems(Array.isArray(loadedRecurrentItems) ? loadedRecurrentItems : DEFAULT_RECURRENT);
