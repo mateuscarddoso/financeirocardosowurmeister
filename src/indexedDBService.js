@@ -179,69 +179,14 @@ export const exportAllData = async () => {
   }
 };
 
-/**
- * Sincroniza dados entre localStorage e IndexedDB
- * Priority: IndexedDB > localStorage
- */
-export const syncData = async (key, data) => {
-  try {
-    // Salvar em ambos os lugares
-    await saveToIndexedDB(STORES.monthlyData, key, data);
-    localStorage.setItem(key, JSON.stringify(data));
-    console.log(`🔄 Dados sincronizados: ${key}`);
-    return true;
-  } catch (err) {
-    console.error('Erro em syncData:', err);
-    // Fallback para localStorage se IndexedDB falhar
-    localStorage.setItem(key, JSON.stringify(data));
-    return false;
-  }
-};
-
-/**
- * Recupera dados com fallback automático
- * Tenta IndexedDB primeiro, depois localStorage
- */
-export const loadDataWithFallback = async (key, defaultValue = null) => {
-  try {
-    // Tentar IndexedDB primeiro
-    const indexedData = await getFromIndexedDB(STORES.monthlyData, key);
-    if (indexedData) {
-      console.log(`✅ Dados carregados do IndexedDB: ${key}`);
-      return indexedData;
-    }
-
-    // Fallback para localStorage
-    const localData = localStorage.getItem(key);
-    if (localData) {
-      try {
-        const parsed = JSON.parse(localData);
-        console.log(`✅ Dados carregados do localStorage (migrando para IndexedDB): ${key}`);
-        // Migrar para IndexedDB
-        await saveToIndexedDB(STORES.monthlyData, key, parsed);
-        return parsed;
-      } catch (err) {
-        console.error('Erro ao parsear localStorage:', err);
-      }
-    }
-
-    return defaultValue;
-  } catch (err) {
-    console.error('Erro em loadDataWithFallback:', err);
-    // Último fallback: tentar localStorage
-    try {
-      const localData = localStorage.getItem(key);
-      return localData ? JSON.parse(localData) : defaultValue;
-    } catch {
-      return defaultValue;
-    }
-  }
-};
+// ... (código anterior da função syncData)
+// ...
 
 /**
  * Verifica o tamanho dos dados em IndexedDB
  */
 export const getStorageSize = async () => {
+// ... (código seguinte)
   try {
     if (!navigator.storage || !navigator.storage.estimate) {
       return null;

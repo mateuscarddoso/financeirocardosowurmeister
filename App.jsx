@@ -34,7 +34,8 @@ import {
   FileUp,
   HardDrive
 } from 'lucide-react';
-import { initIndexedDB, saveToIndexedDB, getFromIndexedDB, loadDataWithFallback, getStorageSize, STORES } from './src/indexedDBService';
+import { initIndexedDB, saveToIndexedDB, getFromIndexedDB, getStorageSize, STORES } from './src/indexedDBService';
+import initialUserData from './seus_dados_janeiro.json';
 
 // --- SISTEMA TOTALMENTE ZERADO ---
 const DEFAULT_RECURRENT = [];
@@ -339,42 +340,43 @@ const App = () => {
         console.log('📦 Inicializando IndexedDB...');
         await initIndexedDB();
 
-        // Carregar dados com fallback automático
-        let loadedMonthlyData = await loadDataWithFallback('fin_mon_nubank', INITIAL_MONTHLY_DATA);
-        let loadedRecurrentItems = await loadDataWithFallback('fin_rec_nubank', DEFAULT_RECURRENT);
-        let loadedGoals = await loadDataWithFallback('fin_goals_nubank', []);
-        let loadedInstallments = await loadDataWithFallback('fin_installments_nubank', []);
+        // 1. VERIFICAR SE A CARGA INICIAL JÁ FOI FEITA
+        const initialLoadDone = await getFromIndexedDB(STORES.appSettings, 'initial_load_done');
 
-        // Se os dados estão vazios, tentar carregar do arquivo seus_dados_janeiro.json
-        if (Object.keys(loadedMonthlyData).length === 0 && loadedRecurrentItems.length === 0) {
-          console.log('📥 Dados vazios! Tentando carregar seus_dados_janeiro.json...');
-          try {
-            const response = await fetch('./seus_dados_janeiro.json');
-            if (response.ok) {
-              const defaultData = await response.json();
-              if (defaultData.monthlyData) {
-                loadedMonthlyData = defaultData.monthlyData;
-                console.log('✅ Dados de janeiro carregados!');
-              }
-              if (defaultData.recurrentItems) {
-                loadedRecurrentItems = defaultData.recurrentItems;
-              }
-              if (defaultData.goals) {
-                loadedGoals = defaultData.goals;
-              }
-              if (defaultData.installments) {
-                loadedInstallments = defaultData.installments;
-              }
-            }
-          } catch (err) {
-            console.error('⚠️ Não conseguiu carregar dados de janeiro:', err);
-          }
+        if (initialLoadDone) {
+          console.log('✅ Carga inicial já realizada. Carregando dados do usuário do DB...');
+          // Se já foi feito, apenas carrega os dados existentes
+          const loadedMonthlyData = await getFromIndexedDB(STORES.monthlyData, 'fin_mon_nubank') || INITIAL_MONTHLY_DATA;
+          const loadedRecurrentItems = await getFromIndexedDB(STORES.recurrentItems, 'fin_rec_nubank') || DEFAULT_RECURRENT;
+          const loadedGoals = await getFromIndexedDB(STORES.goals, 'fin_goals_nubank') || [];
+          const loadedInstallments = await getFromIndexedDB(STORES.installments, 'fin_installments_nubank') || [];
+          
+          setMonthlyData(loadedMonthlyData);
+          setRecurrentItems(loadedRecurrentItems);
+          setGoals(loadedGoals);
+          setInstallments(loadedInstallments);
+          
+        } else {
+          // 2. PRIMEIRA VEZ: CARREGAR DADOS DO ARQUIVO E SALVAR NO DB
+          console.log('📥 Primeira vez acessando! Carregando e salvando seus dados iniciais...');
+          
+          const { monthlyData: initialMonthly, recurrentItems: initialRecurrent, goals: initialGoals, installments: initialInstallments } = initialUserData;
+
+          setMonthlyData(initialMonthly);
+          setRecurrentItems(initialRecurrent);
+          setGoals(initialGoals);
+          setInstallments(initialInstallments);
+
+          // Salva os dados no IndexedDB
+          await saveToIndexedDB(STORES.monthlyData, 'fin_mon_nubank', initialMonthly);
+          await saveToIndexedDB(STORES.recurrentItems, 'fin_rec_nubank', initialRecurrent);
+          await saveToIndexedDB(STORES.goals, 'fin_goals_nubank', initialGoals);
+          await saveToIndexedDB(STORES.installments, 'fin_installments_nubank', initialInstallments);
+
+          // 3. MARCAR QUE A CARGA INICIAL FOI FEITA
+          await saveToIndexedDB(STORES.appSettings, 'initial_load_done', true);
+          console.log('🚩 Carga inicial marcada como concluída. Não será executada novamente.');
         }
-
-        setMonthlyData(loadedMonthlyData);
-        setRecurrentItems(Array.isArray(loadedRecurrentItems) ? loadedRecurrentItems : DEFAULT_RECURRENT);
-        setGoals(Array.isArray(loadedGoals) ? loadedGoals : []);
-        setInstallments(Array.isArray(loadedInstallments) ? loadedInstallments : []);
 
         // Obter informações de armazenamento
         const storage = await getStorageSize();
@@ -384,10 +386,11 @@ const App = () => {
         }
 
         setIsLoadingData(false);
-        console.log('✅ Dados carregados com sucesso');
+        console.log('✅ Dados carregados e prontos para uso.');
+
       } catch (err) {
-        console.error('❌ Erro ao carregar dados:', err);
-        setIsLoadingData(false);
+        console.error('❌ Erro crítico ao carregar dados:', err);
+        setIsLoadingData(false); // Libera a tela mesmo em caso de erro
       }
     };
 
@@ -1375,7 +1378,7 @@ const App = () => {
                    </button>
                 </div>
                 <div className="divide-y divide-slate-50 font-medium">
-                  {recurrentItems.length === 0 ? <div className="p-12 text-center text-slate-400 text-sm italic font-medium">Nenhum item adicionado.</div> : recurrentItems.map(r => (
+                  {recurrentItems.length === 0 ? <div className="p-12 text-center text-slate-400 text-sm italic">Nenhum item adicionado.</div> : recurrentItems.map(r => (
                     <div key={r.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                       <div className="flex items-center gap-3">
                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shadow-sm ${r.type === 'ENTRADA' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
