@@ -335,7 +335,7 @@ const App = () => {
           isPaid: instPaymentStatus[monthKey] || false,
           isInstallment: true,
           date: `${year}-${String(month).padStart(2, '0')}-01`,
-          instId: inst.id,
+          installmentId: inst.id,
           monthKey: monthKey
         };
       });
