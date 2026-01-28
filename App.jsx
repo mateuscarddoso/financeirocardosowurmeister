@@ -681,7 +681,7 @@ const App = () => {
                       <th className="px-5 py-3 border-b text-center w-8">
                          <button onClick={() => { if(selectedIds.length === currentEntries.length && currentEntries.length > 0) setSelectedIds([]); else setSelectedIds(currentEntries.map(e=>e.id)); }} className="text-slate-300 transition-colors hover:text-blue-500"><CheckSquare size={16}/></button>
                       </th>
-                      <th className="px-2 py-3 border-b cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortByType(!sortByType)}>Status {sortByType ? '↑' : '↓'}</th>
+                      <th className="px-2 py-3 border-b cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortByStatus(!sortByStatus)}>Status {sortByStatus ? '↑' : '↓'}</th>
                       <th className="px-2 py-3 border-b">Item</th>
                       <th className="px-2 py-3 border-b text-right">Valor</th>
                       <th className="px-5 py-3 border-b text-center w-20">...</th>
