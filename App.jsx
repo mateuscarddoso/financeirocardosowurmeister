@@ -29,7 +29,9 @@ import {
   Zap,
   TrendingUp,
   TrendingDown,
-  Layers
+  Layers,
+  Download,
+  FileUp
 } from 'lucide-react';
 
 // --- SISTEMA TOTALMENTE ZERADO ---
@@ -53,6 +55,90 @@ const formatDateCorrectly = (dateString, options = {}) => {
   });
 };
 
+// 🛠️ FUNÇÃO PARA EXPORTAR DADOS PARA CSV
+const exportToCSV = (monthlyData, recurrentItems, installments, goals) => {
+  let csv = 'TIPO,DATA,DESCRIÇÃO,CATEGORIA,VALOR,STATUS\n';
+  
+  // Exportar transações mensais
+  Object.entries(monthlyData).forEach(([key, entries]) => {
+    if (Array.isArray(entries)) {
+      entries.forEach(entry => {
+        csv += `${entry.type},${entry.date},${entry.desc},"${entry.category}",${entry.amount},${entry.isPaid ? 'Pago' : 'Pendente'}\n`;
+      });
+    }
+  });
+  
+  // Exportar itens recorrentes
+  recurrentItems.forEach(item => {
+    csv += `${item.type},Recorrente (Dia ${item.dueDay}),${item.desc},"${item.category}",${item.amount},Ativo\n`;
+  });
+  
+  // Exportar parcelamentos
+  installments.forEach(inst => {
+    csv += `PARCELAMENTO,${inst.startDate} até ${inst.endDate},${inst.description},"Parcelado",${inst.monthlyAmount},Ativo\n`;
+  });
+  
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
+  element.setAttribute('download', `extrato_financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+};
+
+// 🛠️ FUNÇÃO PARA IMPORTAR DADOS DO CSV
+const parseCSVData = (csvContent) => {
+  const lines = csvContent.trim().split('\n');
+  const newMonthlyData = {};
+  const newRecurrentItems = [];
+  let importedCount = 0;
+  
+  // Pular header
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Parser simples de CSV (pode falhar com conteúdo complexo)
+    const parts = line.split(',');
+    if (parts.length < 5) continue;
+    
+    const type = parts[0].trim();
+    const dateOrFreq = parts[1].trim();
+    const desc = parts[2].trim().replace(/^"|"$/g, '');
+    const category = parts[3].trim().replace(/^"|"$/g, '');
+    const value = parseFloat(parts[4]) || 0;
+    
+    if (type === 'ENTRADA' || type === 'SAIDA') {
+      if (dateOrFreq.includes('Recorrente')) {
+        newRecurrentItems.push({
+          id: `r-${Date.now()}-${Math.random()}`,
+          type,
+          desc,
+          category,
+          amount: value,
+          dueDay: parseInt(dateOrFreq.match(/\d+/)?.[0]) || 1
+        });
+      } else if (dateOrFreq.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        if (!newMonthlyData[dateOrFreq]) {
+          newMonthlyData[dateOrFreq] = [];
+        }
+        newMonthlyData[dateOrFreq].push({
+          id: `s-${Date.now()}-${Math.random()}`,
+          type,
+          desc,
+          category,
+          amount: value,
+          date: dateOrFreq,
+          isPaid: parts[5]?.includes('Pago') || false
+        });
+      }
+    }
+    importedCount++;
+  }
+  
+  return { newMonthlyData, newRecurrentItems, importedCount };
+};
 
 // 🛠️ UTILITÁRIOS PARA PARCELAMENTOS
 const calculateInstallmentProgress = (startDate, currentYear, currentMonth) => {
@@ -1028,6 +1114,47 @@ const App = () => {
                    </div>
                    {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-500 font-bold uppercase mt-2 ml-1 hover:underline tracking-wide">Remover</button>}
                 </div>
+
+                {/* IMPORT/EXPORT */}
+                <div className="border-t border-slate-200 pt-4">
+                  <span className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold block mb-3">Dados</span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Download size={14} /> Exportar
+                    </button>
+                    <label className="flex-1 cursor-pointer">
+                      <span className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 w-full">
+                        <FileUp size={14} /> Importar
+                      </span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept=".csv,.json"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              try {
+                                const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(reader.result);
+                                setMonthlyData({ ...monthlyData, ...newMonthlyData });
+                                setRecurrentItems([...recurrentItems, ...newRecurrentItems]);
+                                alert(`✅ Importados ${importedCount} registros com sucesso!`);
+                              } catch (err) {
+                                alert(`❌ Erro ao importar: ${err.message}`);
+                              }
+                            };
+                            reader.readAsText(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 <button onClick={() => setShowSettings(false)} className="w-full bg-[#111827] text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl active:scale-95 transition-all mt-3">Pronto</button>
              </div>
           </div>
