@@ -260,6 +260,7 @@ const App = () => {
   const [editingGoal, setEditingGoal] = useState(null);
   const [showInstallments, setShowInstallments] = useState(false);
   const [editingInstallment, setEditingInstallment] = useState(null);
+  const [sortByType, setSortByType] = useState(false);
 
 
   // Personalização
@@ -575,14 +576,24 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 font-medium">
-              <SummaryCard title="Previsão" value={stats.totalIn - stats.totalOut} subtitle="Total" theme="neutral" location="bolso" />
-              <SummaryCard title="Entrada" value={stats.totalIn} subtitle="Receitas" theme="income" location="bolso" />
-              <SummaryCard title="Gasto" value={stats.totalOut} subtitle="Despesas" theme="expense" location="bolso" />
-              <div className="bg-[#111827] p-4 rounded-2xl shadow-md flex flex-col justify-between border border-slate-800 transition-transform hover:scale-[1.01]">
-                <span className="text-xs font-bold uppercase text-slate-400 tracking-wider leading-none">No Bolso</span>
-                <p className="text-2xl font-bold text-white tracking-tight mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
-                <div className="flex items-center gap-2 mt-3"><div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /><span className="text-[9px] text-blue-400 uppercase font-bold">Líquido</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 font-medium">
+              <SummaryCard title="Receitas Previstas" value={stats.totalIn} subtitle="Total a Receber" theme="income" location="bolso" />
+              <SummaryCard title="Receitas Pagas" value={stats.realIn} subtitle="Já Recebidas" theme="income" location="bolso" />
+              <SummaryCard title="Despesas Previstas" value={stats.totalOut} subtitle="Total a Pagar" theme="expense" location="bolso" />
+              <SummaryCard title="Despesas Pagas" value={stats.realOut} subtitle="Já Pagas" theme="expense" location="bolso" />
+            </div>
+
+            {/* BALANCES */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-emerald-700 tracking-wider">Saldo Previsto</span>
+                <p className="text-3xl font-bold text-emerald-700 mt-3">{formatCurrency(stats.totalIn - stats.totalOut)}</p>
+                <span className="text-xs text-emerald-600 mt-2 block">Receitas - Despesas (Planejado)</span>
+              </div>
+              <div className="bg-blue-50 p-5 rounded-2xl border border-blue-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo Real</span>
+                <p className="text-3xl font-bold text-blue-700 mt-3">{formatCurrency(stats.realIn - stats.realOut)}</p>
+                <span className="text-xs text-blue-600 mt-2 block">Recebido - Pago (Realizado)</span>
               </div>
             </div>
 
@@ -658,9 +669,14 @@ const App = () => {
                 )}
 
 
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                  <input type="text" placeholder="Procurar" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <div className="flex items-center gap-3 w-full">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                    <input type="text" placeholder="Procurar" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  </div>
+                  <button onClick={() => setSortByType(!sortByType)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all border whitespace-nowrap ${sortByType ? 'bg-blue-600 border-blue-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}>
+                    {sortByType ? 'Entrada ↑' : 'Ordenar'}
+                  </button>
                 </div>
               </div>
 
@@ -682,7 +698,43 @@ const App = () => {
                     {currentEntries.length === 0 ? (
                       <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-300 text-sm font-medium italic">Sem movimentações. Clique em "+" para adicionar.</td></tr>
                     ) : (
-                      currentEntries.map((t) => (
+                      sortByType 
+                        ? [...currentEntries].sort((a, b) => a.type === 'ENTRADA' ? -1 : 1).map((t) => (
+                        <tr key={t.id} className={`hover:bg-slate-50 transition-colors group ${t.isPaid ? 'opacity-40' : ''} ${selectedIds.includes(t.id) ? 'bg-blue-50/40' : ''}`}>
+                          <td className="px-5 py-3.5 text-center">
+                             <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
+                          </td>
+                          <td className="px-2 py-3.5">
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
+                              {t.isPaid ? 'OK' : 'Pendente'}
+                            </button>
+                          </td>
+                          <td className="px-2 py-3.5">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                 <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
+                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
+                              </div>
+                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
+                            </div>
+                          </td>
+                          <td className="px-2 py-3.5 text-right font-bold">
+                            <span className={t.type === 'ENTRADA' ? 'text-emerald-600 text-sm' : 'text-rose-500 text-sm'}>
+                              {t.type === 'ENTRADA' ? '+' : '-'} {formatCurrency(t.amount)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-center">
+                             {!t.isInstallment && (
+                               <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                                  <button onClick={() => { setEditingItem(t); setShowModal(true); }} className="p-1 text-slate-300 hover:text-blue-600"><Pencil size={14}/></button>
+                                  <button onClick={() => deleteItem(t.id, t.isRecurrent)} className="p-1 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
+                               </div>
+                             )}
+                          </td>
+                        </tr>
+                      ))
+                        : currentEntries.map((t) => (
                         <tr key={t.id} className={`hover:bg-slate-50 transition-colors group ${t.isPaid ? 'opacity-40' : ''} ${selectedIds.includes(t.id) ? 'bg-blue-50/40' : ''}`}>
                           <td className="px-5 py-3.5 text-center">
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
