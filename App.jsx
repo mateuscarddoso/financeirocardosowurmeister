@@ -1280,7 +1280,6 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                 </div>
               </div>
             )}
-            </div>
 
             {/* ATALHOS DE PARCELAMENTO */}
             {formData.paymentType === 'parcelado' && (
