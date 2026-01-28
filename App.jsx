@@ -270,15 +270,15 @@ const App = () => {
   // BACKUP AUTOMÁTICO
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
     const v = localStorage.getItem('fin_auto_backup_enabled');
-    return v ? v === 'true' : false;
+    return v ? v === 'true' : true; // ✅ PADRÃO: true (backup automático ATIVADO)
   });
   const [autoBackupDownload, setAutoBackupDownload] = useState(() => {
     const v = localStorage.getItem('fin_auto_backup_download');
     return v ? v === 'true' : false;
   });
   const [autoBackupIntervalMins, setAutoBackupIntervalMins] = useState(() => {
-    const v = parseInt(localStorage.getItem('fin_auto_backup_interval') || '60', 10);
-    return isNaN(v) ? 60 : v;
+    const v = parseInt(localStorage.getItem('fin_auto_backup_interval') || '30', 10);
+    return isNaN(v) ? 30 : v;
   });
 
   // Armazenamento
@@ -304,17 +304,82 @@ const App = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // 🔄 Sincronização robusta com localStorage
   useEffect(() => {
-    localStorage.setItem('fin_rec_nubank', JSON.stringify(recurrentItems));
-    localStorage.setItem('fin_mon_nubank', JSON.stringify(monthlyData));
-    localStorage.setItem('fin_title_nubank', appTitle);
-    localStorage.setItem('fin_goals_nubank', JSON.stringify(goals));
-    localStorage.setItem('fin_installments_nubank', JSON.stringify(installments));
-    if (appLogo) localStorage.setItem('fin_logo_nubank', appLogo);
-    localStorage.setItem('fin_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
-    localStorage.setItem('fin_auto_backup_download', autoBackupDownload ? 'true' : 'false');
-    localStorage.setItem('fin_auto_backup_interval', String(autoBackupIntervalMins));
+    const saveData = () => {
+      try {
+        localStorage.setItem('fin_rec_nubank', JSON.stringify(recurrentItems));
+        localStorage.setItem('fin_mon_nubank', JSON.stringify(monthlyData));
+        localStorage.setItem('fin_title_nubank', appTitle);
+        localStorage.setItem('fin_goals_nubank', JSON.stringify(goals));
+        localStorage.setItem('fin_installments_nubank', JSON.stringify(installments));
+        if (appLogo) localStorage.setItem('fin_logo_nubank', appLogo);
+        localStorage.setItem('fin_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
+        localStorage.setItem('fin_auto_backup_download', autoBackupDownload ? 'true' : 'false');
+        localStorage.setItem('fin_auto_backup_interval', String(autoBackupIntervalMins));
+        localStorage.setItem('fin_last_save', new Date().toISOString());
+      } catch (err) {
+        console.error('Erro ao salvar dados:', err);
+      }
+    };
+
+    saveData();
   }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments, autoBackupEnabled, autoBackupDownload, autoBackupIntervalMins]);
+
+  // 🔒 Salva dados quando o usuário sai da página (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem('fin_rec_nubank', JSON.stringify(recurrentItems));
+        localStorage.setItem('fin_mon_nubank', JSON.stringify(monthlyData));
+        localStorage.setItem('fin_goals_nubank', JSON.stringify(goals));
+        localStorage.setItem('fin_installments_nubank', JSON.stringify(installments));
+        localStorage.setItem('fin_last_save', new Date().toISOString());
+      } catch (err) {
+        console.error('Erro ao salvar dados na saída:', err);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [recurrentItems, monthlyData, goals, installments]);
+
+  // 🔄 Sincronização entre abas
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'fin_mon_nubank' && e.newValue) {
+        try {
+          setMonthlyData(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Erro ao carregar monthlyData de outra aba:', err);
+        }
+      }
+      if (e.key === 'fin_rec_nubank' && e.newValue) {
+        try {
+          setRecurrentItems(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Erro ao carregar recurrentItems de outra aba:', err);
+        }
+      }
+      if (e.key === 'fin_goals_nubank' && e.newValue) {
+        try {
+          setGoals(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Erro ao carregar goals de outra aba:', err);
+        }
+      }
+      if (e.key === 'fin_installments_nubank' && e.newValue) {
+        try {
+          setInstallments(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Erro ao carregar installments de outra aba:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
 
   const periodKey = `${year}-${month}`;
@@ -447,6 +512,36 @@ const App = () => {
     createBackupSnapshot();
     return () => clearInterval(id);
   }, [autoBackupEnabled, autoBackupIntervalMins, autoBackupDownload, monthlyData, recurrentItems, goals, installments, appTitle, appLogo]);
+
+  // 🔄 Recuperação automática de dados se estiverem vazios
+  useEffect(() => {
+    // Se os dados principais estão vazios, tentar recuperar de um backup
+    if (
+      Object.keys(monthlyData).length === 0 && 
+      recurrentItems.length === 0 && 
+      goals.length === 0 && 
+      installments.length === 0
+    ) {
+      try {
+        const backupsRaw = localStorage.getItem('fin_auto_backups');
+        if (backupsRaw) {
+          const backups = JSON.parse(backupsRaw);
+          if (backups.length > 0) {
+            const latestBackup = backups[0];
+            console.log('📦 Recuperando dados do backup automático...');
+            if (latestBackup.monthlyData) setMonthlyData(latestBackup.monthlyData);
+            if (latestBackup.recurrentItems) setRecurrentItems(latestBackup.recurrentItems);
+            if (latestBackup.goals) setGoals(latestBackup.goals);
+            if (latestBackup.installments) setInstallments(latestBackup.installments);
+            if (latestBackup.appTitle) setAppTitle(latestBackup.appTitle);
+            if (latestBackup.appLogo) setAppLogo(latestBackup.appLogo);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao recuperar backup automático:', err);
+      }
+    }
+  }, []); // Executar apenas uma vez na montagem
 
   // Entradas por categoria
   const incomeByCategory = useMemo(() => {
