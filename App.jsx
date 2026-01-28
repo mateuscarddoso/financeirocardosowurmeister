@@ -187,6 +187,42 @@ const getMonthlyInstallmentAmount = (inst, year, month) => {
   return 0;
 };
 
+// 🔄 FUNÇÃO PARA RESTAURAR DADOS A PARTIR DE JSON
+const restoreDataFromJSON = (jsonString, setters) => {
+  try {
+    const data = JSON.parse(jsonString);
+    
+    if (data.recurrentItems && Array.isArray(data.recurrentItems)) {
+      setters.setRecurrentItems(data.recurrentItems);
+    }
+    if (data.monthlyData && typeof data.monthlyData === 'object') {
+      setters.setMonthlyData(data.monthlyData);
+    }
+    if (data.goals && Array.isArray(data.goals)) {
+      setters.setGoals(data.goals);
+    }
+    if (data.installments && Array.isArray(data.installments)) {
+      setters.setInstallments(data.installments);
+    }
+    if (data.appTitle) {
+      setters.setAppTitle(data.appTitle);
+    }
+    if (data.appLogo) {
+      setters.setAppLogo(data.appLogo);
+    }
+    
+    // Salvar no localStorage
+    localStorage.setItem('fin_rec_nubank', JSON.stringify(data.recurrentItems || []));
+    localStorage.setItem('fin_mon_nubank', JSON.stringify(data.monthlyData || {}));
+    localStorage.setItem('fin_goals_nubank', JSON.stringify(data.goals || []));
+    localStorage.setItem('fin_installments_nubank', JSON.stringify(data.installments || []));
+    
+    return { success: true, message: `✅ ${Object.keys(data).length} seções restauradas com sucesso!` };
+  } catch (err) {
+    return { success: false, message: `❌ Erro ao restaurar dados: ${err.message}` };
+  }
+};
+
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('fin_logged_in') === 'true');
   const [loginPassword, setLoginPassword] = useState('');
@@ -261,6 +297,9 @@ const App = () => {
   const [showInstallments, setShowInstallments] = useState(false);
   const [editingInstallment, setEditingInstallment] = useState(null);
   const [sortByStatus, setSortByStatus] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryData, setRecoveryData] = useState('');
+  const [recoveryMessage, setRecoveryMessage] = useState('');
 
 
   // Personalização
@@ -1372,6 +1411,14 @@ const App = () => {
                 </div>
 
                 <button onClick={() => setShowSettings(false)} className="w-full bg-[#111827] text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl active:scale-95 transition-all mt-3">Pronto</button>
+                
+                {/* BOTÃO RECUPERAR DADOS */}
+                <button 
+                  onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl active:scale-95 transition-all mt-2 hover:bg-blue-700 flex items-center justify-center gap-2"
+                >
+                  <Database size={16} /> 🔄 Recuperar Meus Dados
+                </button>
              </div>
           </div>
         </div>
@@ -1409,6 +1456,102 @@ const App = () => {
             onSave={handleSaveInstallment} 
             onClose={() => { setEditingInstallment(null); setShowInstallments(false); }} 
           />
+        </div>
+      )}
+      
+      {/* MODAL DE RECUPERAÇÃO DE DADOS */}
+      {showRecoveryModal && (
+        <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-slate-800">🔄 Recuperar Meus Dados</h2>
+              <button onClick={() => { setShowRecoveryModal(false); setRecoveryData(''); setRecoveryMessage(''); }} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            </div>
+            
+            <p className="text-sm text-slate-600">
+              Cole o JSON dos seus dados salvos abaixo para recuperá-los. Se não tem os dados, verifique os backups automáticos.
+            </p>
+
+            {/* Mostrar últimos backups */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-bold text-blue-700 uppercase">📦 Backups Automáticos Salvos:</p>
+              {(() => {
+                try {
+                  const backups = JSON.parse(localStorage.getItem('fin_auto_backups') || '[]');
+                  return (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {backups.length === 0 ? (
+                        <p className="text-xs text-blue-600">Nenhum backup encontrado ainda</p>
+                      ) : (
+                        backups.slice(0, 5).map((backup, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setRecoveryData(JSON.stringify(backup, null, 2));
+                              setRecoveryMessage('');
+                            }}
+                            className="w-full text-left text-xs bg-white border border-blue-100 p-2 rounded hover:bg-blue-50 transition-colors text-blue-600 font-medium truncate"
+                            title={new Date(backup.timestamp).toLocaleString('pt-BR')}
+                          >
+                            📅 {new Date(backup.timestamp).toLocaleString('pt-BR')}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  );
+                } catch (err) {
+                  return <p className="text-xs text-red-600">Erro ao carregar backups</p>;
+                }
+              })()}
+            </div>
+
+            <textarea
+              value={recoveryData}
+              onChange={(e) => setRecoveryData(e.target.value)}
+              placeholder="Cole seus dados em formato JSON aqui..."
+              className="w-full h-32 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+            />
+
+            {recoveryMessage && (
+              <div className={`p-3 rounded-lg text-xs font-medium ${
+                recoveryMessage.includes('✅') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+              }`}>
+                {recoveryMessage}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const result = restoreDataFromJSON(recoveryData, {
+                    setRecurrentItems,
+                    setMonthlyData,
+                    setGoals,
+                    setInstallments,
+                    setAppTitle,
+                    setAppLogo
+                  });
+                  setRecoveryMessage(result.message);
+                  if (result.success) {
+                    setTimeout(() => {
+                      setShowRecoveryModal(false);
+                      setRecoveryData('');
+                      setRecoveryMessage('');
+                    }, 1500);
+                  }
+                }}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm uppercase hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                ✅ Restaurar Dados
+              </button>
+              <button
+                onClick={() => { setShowRecoveryModal(false); setRecoveryData(''); setRecoveryMessage(''); }}
+                className="flex-1 bg-slate-200 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase hover:bg-slate-300 active:scale-95 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
       
