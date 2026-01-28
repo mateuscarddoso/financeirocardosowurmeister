@@ -260,7 +260,7 @@ const App = () => {
   const [editingGoal, setEditingGoal] = useState(null);
   const [showInstallments, setShowInstallments] = useState(false);
   const [editingInstallment, setEditingInstallment] = useState(null);
-  const [sortByType, setSortByType] = useState(false);
+  const [sortByStatus, setSortByStatus] = useState(false);
 
 
   // Personalização
@@ -576,14 +576,22 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-rose-50 p-6 rounded-2xl border border-rose-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-rose-700 tracking-wider">Precisa Pagar Este Mês</span>
-                <p className="text-4xl font-bold text-rose-700 mt-3">{formatCurrency(stats.totalOut)}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-emerald-700 tracking-wider">Entrada</span>
+                <p className="text-2xl font-bold text-emerald-700 mt-2">{formatCurrency(stats.realIn)}</p>
               </div>
-              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo Atual</span>
-                <p className={`text-4xl font-bold mt-3 ${stats.realIn - stats.realOut >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>{formatCurrency(stats.realIn - stats.realOut)}</p>
+              <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-rose-700 tracking-wider">Despesa</span>
+                <p className="text-2xl font-bold text-rose-700 mt-2">{formatCurrency(stats.realOut)}</p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo</span>
+                <p className={`text-2xl font-bold mt-2 ${stats.realIn - stats.realOut >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>{formatCurrency(stats.realIn - stats.realOut)}</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-slate-700 tracking-wider">Faltam Pagar</span>
+                <p className="text-2xl font-bold text-slate-700 mt-2">{formatCurrency(stats.totalOut)}</p>
               </div>
             </div>
 
@@ -673,8 +681,8 @@ const App = () => {
                       <th className="px-5 py-3 border-b text-center w-8">
                          <button onClick={() => { if(selectedIds.length === currentEntries.length && currentEntries.length > 0) setSelectedIds([]); else setSelectedIds(currentEntries.map(e=>e.id)); }} className="text-slate-300 transition-colors hover:text-blue-500"><CheckSquare size={16}/></button>
                       </th>
-                      <th className="px-2 py-3 border-b">Status</th>
-                      <th className="px-2 py-3 border-b cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortByType(!sortByType)}>Item {sortByType ? '↑' : '↓'}</th>
+                      <th className="px-2 py-3 border-b cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortByType(!sortByType)}>Status {sortByType ? '↑' : '↓'}</th>
+                      <th className="px-2 py-3 border-b">Item</th>
                       <th className="px-2 py-3 border-b text-right">Valor</th>
                       <th className="px-5 py-3 border-b text-center w-20">...</th>
                     </tr>
@@ -683,8 +691,8 @@ const App = () => {
                     {currentEntries.length === 0 ? (
                       <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-300 text-sm font-medium italic">Sem movimentações. Clique em "+" para adicionar.</td></tr>
                     ) : (
-                      sortByType 
-                        ? [...currentEntries].sort((a, b) => a.type === 'ENTRADA' ? -1 : 1).map((t) => (
+                      sortByStatus 
+                        ? [...currentEntries].sort((a, b) => a.isPaid === b.isPaid ? 0 : a.isPaid ? 1 : -1).map((t) => (
                         <tr key={t.id} className={`hover:bg-slate-50 transition-colors group ${t.isPaid ? 'opacity-40' : ''} ${selectedIds.includes(t.id) ? 'bg-blue-50/40' : ''}`}>
                           <td className="px-5 py-3.5 text-center">
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
