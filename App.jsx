@@ -583,7 +583,8 @@ const App = () => {
                   </div>
                   {showPendencies ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
-                <div className="px-5 pb-3 space-y-2 border-t border-slate-50 pt-3 bg-slate-50/30 font-medium">
+                {showPendencies && (
+                  <div className="px-5 pb-3 space-y-2 border-t border-slate-50 pt-3 bg-slate-50/30 font-medium">
                     {lastMonthPendencies.map(p => (
                       <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-white border border-slate-100 shadow-sm">
                          <div className="flex items-center gap-3">
@@ -682,15 +683,7 @@ const App = () => {
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && (() => {
-                                   const installment = installments.find(inst => inst.id === t.installmentId);
-                                   const totalInst = installment?.totalInstallments || 0;
-                                   return (
-                                     <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">
-                                       Parcelado • {installment?.installmentsPaid || 0}/{totalInst}
-                                     </span>
-                                   );
-                                 })()}
+                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
                               </div>
                               <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
