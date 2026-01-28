@@ -253,7 +253,6 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showPendencies, setShowPendencies] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -550,53 +549,11 @@ const App = () => {
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-[#1F2937] rounded-xl border border-slate-700 px-3 py-1.5">
               <button onClick={() => handleMonthChange(-1)} disabled={year === 2026 && month === 1} className={`p-0.5 ${year === 2026 && month === 1 ? 'text-slate-600' : 'text-slate-300 hover:text-blue-400'}`}><ChevronLeft size={16}/></button>
-              <span className="text-[10px] font-medium w-24 text-center uppercase tracking-wider cursor-pointer hover:text-blue-400 transition-colors" onClick={() => setShowMonthPicker(!showMonthPicker)}>{MONTHS[month-1]} {year}</span>
+              <span className="text-[10px] font-medium w-24 text-center uppercase tracking-wider">{MONTHS[month-1]} {year}</span>
               <button onClick={() => handleMonthChange(1)} className="p-0.5 text-slate-300 hover:text-blue-400"><ChevronRight size={16}/></button>
             </div>
             <button onClick={() => setShowSettings(true)} className="p-1.5 bg-[#1F2937] rounded-xl border border-slate-700 hover:bg-slate-700"><Settings2 size={16} className="text-slate-400" /></button>
           </div>
-
-          {/* SELETOR VISUAL DE MESES */}
-          {showMonthPicker && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-lg animate-in slide-in-from-top duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Selecionar Mês e Ano</h3>
-                <button onClick={() => setShowMonthPicker(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Seletor de Ano */}
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ano</span>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setYear(year - 1)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronLeft size={18} className="text-slate-500"/></button>
-                    <span className="text-lg font-bold text-slate-800 w-16 text-center">{year}</span>
-                    <button onClick={() => setYear(year + 1)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronRight size={18} className="text-slate-500"/></button>
-                  </div>
-                </div>
-
-                {/* Seletor de Mês */}
-                <div className="space-y-3">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mês</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {MONTHS.map((m, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => { setMonth(idx + 1); setShowMonthPicker(false); }}
-                        className={`py-3 px-2 rounded-lg font-bold text-xs uppercase transition-all ${
-                          month === idx + 1
-                            ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
-                        }`}
-                      >
-                        {m.slice(0, 3)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </header>
 
@@ -641,6 +598,33 @@ const App = () => {
               </div>
             )}
 
+
+            {/* SELETOR DE MESES */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mês / Ano</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setYear(year - 1)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">◄</button>
+                  <span className="text-xs font-bold text-slate-600 w-8 text-center">{year}</span>
+                  <button onClick={() => setYear(year + 1)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">►</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((m, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setMonth(i + 1)}
+                    className={`py-2 rounded font-bold text-xs uppercase tracking-wider transition-all ${
+                      month === i + 1
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* LISTAGEM PRINCIPAL */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col font-medium">
@@ -698,9 +682,18 @@ const App = () => {
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
+                                 {t.isInstallment && (() => {
+                                   const installment = installments.find(inst => inst.id === t.installmentId);
+                                   const metrics = installment ? calculateInstallmentMetrics(installment, year, month) : null;
+                                   const totalInst = installment ? Math.round((new Date(installment.endDate) - new Date(installment.startDate)) / (1000 * 60 * 60 * 24 * 30)) + 1 : 0;
+                                   return (
+                                     <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">
+                                       Parcelado • {installment?.installmentsPaid || 0}/{totalInst}
+                                     </span>
+                                   );
+                                 })()}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.category} • {t.date ? formatDateCorrectly(t.date, {month: '2-digit'}) : '--/--'}</span>
+                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
                           </td>
                           <td className="px-2 py-3.5 text-right font-bold">
