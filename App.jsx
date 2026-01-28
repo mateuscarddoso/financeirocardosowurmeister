@@ -684,8 +684,7 @@ const App = () => {
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
                                  {t.isInstallment && (() => {
                                    const installment = installments.find(inst => inst.id === t.installmentId);
-                                   const metrics = installment ? calculateInstallmentMetrics(installment, year, month) : null;
-                                   const totalInst = installment ? Math.round((new Date(installment.endDate) - new Date(installment.startDate)) / (1000 * 60 * 60 * 24 * 30)) + 1 : 0;
+                                   const totalInst = installment?.totalInstallments || 0;
                                    return (
                                      <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">
                                        Parcelado • {installment?.installmentsPaid || 0}/{totalInst}
