@@ -32,7 +32,6 @@ import {
   Layers
 } from 'lucide-react';
 
-
 // --- SISTEMA TOTALMENTE ZERADO ---
 const DEFAULT_RECURRENT = [];
 const INITIAL_MONTHLY_DATA = {};
@@ -42,6 +41,17 @@ const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
+
+// 🛠️ FUNÇÃO PARA FORMATAR DATAS CORRETAMENTE (evita off-by-one)
+const formatDateCorrectly = (dateString, options = {}) => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString('pt-BR', { 
+    day: options.day || '2-digit', 
+    month: options.month || 'short',
+    ...options 
+  });
+};
 
 
 // 🛠️ UTILITÁRIOS PARA PARCELAMENTOS
@@ -562,7 +572,7 @@ const App = () => {
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
                                  {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.category} • {t.date ? new Date(t.date).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : '--/--'}</span>
+                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.category} • {t.date ? formatDateCorrectly(t.date, {month: '2-digit'}) : '--/--'}</span>
                             </div>
                           </td>
                           <td className="px-2 py-3.5 text-right font-bold">
@@ -783,7 +793,7 @@ const App = () => {
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setEditingItem({...inst, isInstallment: true}); setShowInstallments(true); }} className="p-1.5 text-slate-300 hover:text-blue-600 transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => { setEditingInstallment(inst); setShowInstallments(true); }} className="p-1.5 text-slate-300 hover:text-blue-600 transition-colors"><Pencil size={14} /></button>
                           <button onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </div>
@@ -826,11 +836,11 @@ const App = () => {
                       <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
                         <div className="bg-slate-50 rounded-lg p-3">
                           <div className="text-[10px] text-slate-500 uppercase font-bold">Início</div>
-                          <div className="text-sm font-bold text-slate-800 mt-1">{new Date(inst.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                          <div className="text-sm font-bold text-slate-800 mt-1">{formatDateCorrectly(inst.startDate)}</div>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-3">
                           <div className="text-[10px] text-slate-500 uppercase font-bold">Término</div>
-                          <div className="text-sm font-bold text-slate-800 mt-1">{new Date(inst.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                          <div className="text-sm font-bold text-slate-800 mt-1">{formatDateCorrectly(inst.endDate)}</div>
                         </div>
                       </div>
                     </div>
@@ -1070,7 +1080,8 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
     paymentType: 'parcelado',
     totalInstallments: '',
     paymentDay: '01',
-    customInstallments: [] // Para armazenar valores customizados
+    customInstallments: [],
+    installmentsPaid: 0 // Número de parcelas já pagas
   });
   
   const [previewData, setPreviewData] = useState(null);
@@ -1226,6 +1237,21 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
               </div>
             )}
 
+            {/* PARCELAS JÁ PAGAS */}
+            {(formData.paymentType === 'parcelado' || formData.paymentType === 'parcelado-outros') && (
+              <div className="space-y-2">
+                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Parcelas Já Pagas</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  placeholder="0" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  value={formData.installmentsPaid || 0} 
+                  onChange={e => setFormData({...formData, installmentsPaid: parseInt(e.target.value) || 0})} 
+                />
+              </div>
+            )}
+
             {/* VALORES CUSTOMIZADOS (OUTROS) */}
             {formData.paymentType === 'parcelado-outros' && (
               <div className="space-y-3">
@@ -1319,7 +1345,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                   </div>
                 </div>
                 <div className="bg-white rounded-lg p-3 border border-purple-100 text-[11px] text-slate-600 font-medium">
-                  <span>Período: <strong>{new Date(previewData.startDate).toLocaleDateString('pt-BR')}</strong> até <strong>{new Date(previewData.endDate).toLocaleDateString('pt-BR')}</strong></span>
+                  <span>Período: <strong>{formatDateCorrectly(previewData.startDate)}</strong> até <strong>{formatDateCorrectly(previewData.endDate)}</strong></span>
                 </div>
               </div>
             )}
