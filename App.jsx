@@ -437,11 +437,11 @@ const App = () => {
   const handleSave = (item) => {
     const formattedItem = { ...item, desc: item.desc.toUpperCase() };
     if (view === 'fixos') {
-      if (editingItem) setRecurrentItems(recurrentItems.map(r => r.id === editingItem.id ? { ...formattedItem, id: editingItem.id } : r));
+      if (editingItem) setRecurrentItems(recurrentItems.map(r => r.id === editingItem.id ? { ...r, ...formattedItem, id: editingItem.id } : r));
       else setRecurrentItems([...recurrentItems, { ...formattedItem, id: `r-${Date.now()}` }]);
     } else {
       const specifics = monthlyData[periodKey] || [];
-      if (editingItem) setMonthlyData({ ...monthlyData, [periodKey]: specifics.map(t => t.id === editingItem.id ? { ...formattedItem, id: editingItem.id } : t) });
+      if (editingItem) setMonthlyData({ ...monthlyData, [periodKey]: specifics.map(t => t.id === editingItem.id ? { ...t, ...formattedItem, id: editingItem.id } : t) });
       else setMonthlyData({ ...monthlyData, [periodKey]: [{ ...formattedItem, id: `s-${Date.now()}` }, ...specifics] });
     }
     closeModal();
