@@ -576,24 +576,14 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 font-medium">
-              <SummaryCard title="Receitas Previstas" value={stats.totalIn} subtitle="Total a Receber" theme="income" location="bolso" />
-              <SummaryCard title="Receitas Pagas" value={stats.realIn} subtitle="Já Recebidas" theme="income" location="bolso" />
-              <SummaryCard title="Despesas Previstas" value={stats.totalOut} subtitle="Total a Pagar" theme="expense" location="bolso" />
-              <SummaryCard title="Despesas Pagas" value={stats.realOut} subtitle="Já Pagas" theme="expense" location="bolso" />
-            </div>
-
-            {/* BALANCES */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-emerald-700 tracking-wider">Saldo Previsto</span>
-                <p className="text-3xl font-bold text-emerald-700 mt-3">{formatCurrency(stats.totalIn - stats.totalOut)}</p>
-                <span className="text-xs text-emerald-600 mt-2 block">Receitas - Despesas (Planejado)</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-rose-50 p-6 rounded-2xl border border-rose-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-rose-700 tracking-wider">Precisa Pagar Este Mês</span>
+                <p className="text-4xl font-bold text-rose-700 mt-3">{formatCurrency(stats.totalOut)}</p>
               </div>
-              <div className="bg-blue-50 p-5 rounded-2xl border border-blue-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo Real</span>
-                <p className="text-3xl font-bold text-blue-700 mt-3">{formatCurrency(stats.realIn - stats.realOut)}</p>
-                <span className="text-xs text-blue-600 mt-2 block">Recebido - Pago (Realizado)</span>
+              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm">
+                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo Atual</span>
+                <p className={`text-4xl font-bold mt-3 ${stats.realIn - stats.realOut >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>{formatCurrency(stats.realIn - stats.realOut)}</p>
               </div>
             </div>
 
@@ -669,14 +659,9 @@ const App = () => {
                 )}
 
 
-                <div className="flex items-center gap-3 w-full">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                    <input type="text" placeholder="Procurar" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                  </div>
-                  <button onClick={() => setSortByType(!sortByType)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all border whitespace-nowrap ${sortByType ? 'bg-blue-600 border-blue-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}>
-                    {sortByType ? 'Entrada ↑' : 'Ordenar'}
-                  </button>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
+                  <input type="text" placeholder="Procurar" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg py-2 pl-9 pr-4 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
               </div>
 
@@ -689,7 +674,7 @@ const App = () => {
                          <button onClick={() => { if(selectedIds.length === currentEntries.length && currentEntries.length > 0) setSelectedIds([]); else setSelectedIds(currentEntries.map(e=>e.id)); }} className="text-slate-300 transition-colors hover:text-blue-500"><CheckSquare size={16}/></button>
                       </th>
                       <th className="px-2 py-3 border-b">Status</th>
-                      <th className="px-2 py-3 border-b">Item</th>
+                      <th className="px-2 py-3 border-b cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => setSortByType(!sortByType)}>Item {sortByType ? '↑' : '↓'}</th>
                       <th className="px-2 py-3 border-b text-right">Valor</th>
                       <th className="px-5 py-3 border-b text-center w-20">...</th>
                     </tr>
