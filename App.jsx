@@ -90,6 +90,28 @@ const exportToCSV = (monthlyData, recurrentItems, installments, goals) => {
   document.body.removeChild(element);
 };
 
+// Exportar todo o estado em JSON estruturado
+const exportToJSON = (monthlyData, recurrentItems, installments, goals, appTitle, appLogo) => {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    appTitle,
+    appLogo,
+    monthlyData,
+    recurrentItems,
+    installments,
+    goals
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fin_data_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 // 🛠️ FUNÇÃO PARA IMPORTAR DADOS DO CSV
 const parseCSVData = (csvContent) => {
   const lines = csvContent.trim().split('\n');
@@ -230,6 +252,25 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('fin_logged_in') === 'true');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [projections, setProjections] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fin_projections') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const saveProjections = (obj) => {
+    setProjections(obj);
+    localStorage.setItem('fin_projections', JSON.stringify(obj));
+  };
+
+  const updateProjection = (year, month, income, expense) => {
+    const key = `${year}-${String(month).padStart(2,'0')}`;
+    const newProjs = { ...projections, [key]: { income: parseFloat(income)||0, expense: parseFloat(expense)||0 } };
+    saveProjections(newProjs);
+  };
   
   const handleLogin = (e) => {
     e.preventDefault();
@@ -238,11 +279,25 @@ const App = () => {
       setIsLoggedIn(true);
       setLoginPassword('');
       setLoginError('');
+      setIsLoading(true);
+      setView('mensal');
+      // fake loading for 1s
+      setTimeout(() => setIsLoading(false), 1000);
     } else {
       setLoginError('Senha incorreta!');
       setLoginPassword('');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="space-y-4 text-center animate-pulse">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin duration-1000"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -257,7 +312,7 @@ const App = () => {
             
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Senha</label>
+                <label className="text-xs font-bold text-slate-400 capitalize tracking-widest mb-2 block">Senha</label>
                 <input 
                   type="password" 
                   placeholder="Digite sua senha" 
@@ -275,7 +330,7 @@ const App = () => {
               
               <button 
                 type="submit" 
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm capitalize tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
               >
                 Acessar
               </button>
@@ -287,8 +342,10 @@ const App = () => {
   }
 
   const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(1);
-  const [view, setView] = useState('mensal'); 
+  const [month, setMonth] = useState(3); // iniciar em março
+  const [view, setView] = useState('mensal'); // view inicial: fluxo de caixa (mensal)
+  const [selectedMonth, setSelectedMonth] = useState(3);
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -670,7 +727,7 @@ const App = () => {
 
 
   const lastMonthPendencies = useMemo(() => {
-    if (year === 2026 && month === 1) return [];
+    if (year === 2026 && month <= 3) return [];
     const prevM = month === 1 ? 12 : month - 1;
     const prevY = month === 1 ? year - 1 : year;
     const prevKey = `${prevY}-${prevM}`;
@@ -688,6 +745,7 @@ const App = () => {
     if (nMonth < 1) { nMonth = 12; nYear--; }
     if (nMonth > 12) { nMonth = 1; nYear++; }
     if (nYear < 2026) return;
+    if (nYear === 2026 && nMonth < 3) return; // bloquear janeiro/fevereiro
     setMonth(nMonth);
     setYear(nYear);
     setSelectedIds([]); 
@@ -701,7 +759,7 @@ const App = () => {
 
 
   const handleSave = (item) => {
-    const formattedItem = { ...item, desc: item.desc.toUpperCase() };
+    const formattedItem = { ...item, desc: item.desc };
     if (view === 'fixos') {
       if (editingItem) setRecurrentItems(recurrentItems.map(r => r.id === editingItem.id ? { ...r, ...formattedItem, id: editingItem.id } : r));
       else setRecurrentItems([...recurrentItems, { ...formattedItem, id: `r-${Date.now()}` }]);
@@ -799,6 +857,35 @@ const App = () => {
 
   const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+  // Componente simples de gráfico circular (donut) sem dependência externa
+  const CircularChart = ({ incoming = 0, outgoing = 0 }) => {
+    const total = incoming + outgoing;
+    if (total === 0) {
+      return (
+        <div className="flex items-center justify-center">
+          <div className="w-36 h-36 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">Sem dados</div>
+        </div>
+      );
+    }
+    const inPct = Math.round((incoming / total) * 100);
+    const outPct = 100 - inPct;
+    return (
+      <div className="flex flex-col items-center">
+        <svg viewBox="0 0 36 36" className="w-36 h-36">
+          <path d={`M18 2.0845
+            a 15.9155 15.9155 0 0 1 0 31.831
+            a 15.9155 15.9155 0 0 1 0 -31.831`} fill="#e6eef6" />
+          <circle r="15.9155" cx="18" cy="18" fill="transparent" stroke="#10b981" strokeWidth="6" strokeDasharray={`${inPct} ${outPct}`} strokeDashoffset="25" transform="rotate(-90 18 18)" />
+          <circle r="10" cx="18" cy="18" fill="#fff" />
+        </svg>
+        <div className="mt-3 text-center">
+          <div className="text-sm font-bold text-slate-700">Entradas {inPct}%</div>
+          <div className="text-sm font-medium text-slate-500">Saídas {outPct}%</div>
+        </div>
+      </div>
+    );
+  };
+
   // Tela de carregamento enquanto dados estão sendo recuperados
   if (isLoadingData) {
     return (
@@ -830,23 +917,23 @@ const App = () => {
             )}
             <div>
               <h1 className="text-base font-bold leading-none">{appTitle}</h1>
-              <span className="text-[9px] text-slate-400 uppercase tracking-wider block font-medium mt-0.5">2026</span>
+              <span className="text-[9px] text-slate-400 capitalize tracking-wider block font-medium mt-0.5">2026</span>
             </div>
           </div>
 
 
           <div className="flex items-center bg-[#1F2937] p-1 rounded-lg border border-slate-700">
-            <button onClick={() => setView('mensal')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'mensal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Gastos</button>
-            <button onClick={() => setView('fixos')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'fixos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fixos</button>
-            <button onClick={() => setView('metas')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'metas' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Metas</button>
-            <button onClick={() => setView('parcelado')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all uppercase tracking-wide ${view === 'parcelado' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Parcelado</button>
+            <button onClick={() => setView('mensal')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'mensal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fluxo de caixa</button>
+            <button onClick={() => setView('fixos')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'fixos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fixos</button>
+            <button onClick={() => setView('metas')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'metas' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Metas</button>
+            <button onClick={() => setView('parcelado')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'parcelado' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Parcelado</button>
           </div>
 
 
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-[#1F2937] rounded-xl border border-slate-700 px-3 py-1.5">
-              <button onClick={() => handleMonthChange(-1)} disabled={year === 2026 && month === 1} className={`p-0.5 ${year === 2026 && month === 1 ? 'text-slate-600' : 'text-slate-300 hover:text-blue-400'}`}><ChevronLeft size={16}/></button>
-              <span className="text-[10px] font-medium w-24 text-center uppercase tracking-wider">{MONTHS[month-1]} {year}</span>
+              <button onClick={() => handleMonthChange(-1)} disabled={year === 2026 && month <= 3} className={`p-0.5 ${year === 2026 && month <= 3 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:text-blue-400'}`}><ChevronLeft size={16}/></button>
+              <span className="text-[10px] font-medium w-24 text-center capitalize tracking-wider">{MONTHS[month-1]} {year}</span>
               <button onClick={() => handleMonthChange(1)} className="p-0.5 text-slate-300 hover:text-blue-400"><ChevronRight size={16}/></button>
             </div>
             <button onClick={() => setShowSettings(true)} className="p-1.5 bg-[#1F2937] rounded-xl border border-slate-700 hover:bg-slate-700"><Settings2 size={16} className="text-slate-400" /></button>
@@ -858,21 +945,47 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
+            {/* Arena incorporada à área de fluxo */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="flex items-center justify-center p-4">
+                  <CircularChart incoming={(() => {
+                    const key = `${selectedYear}-${String(selectedMonth).padStart(2,'0')}`;
+                    const entries = monthlyData[key] || [];
+                    const eSum = entries.reduce((s,e) => e.type === 'ENTRADA' ? s + (parseFloat(e.amount)||0) : s, 0);
+                    const rSum = recurrentItems.filter(r=>r.type==='ENTRADA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+                    return eSum + rSum;
+                  })()} outgoing={(() => {
+                    const key = `${selectedYear}-${String(selectedMonth).padStart(2,'0')}`;
+                    const entries = monthlyData[key] || [];
+                    let sum = entries.reduce((s,e) => e.type === 'SAIDA' ? s + (parseFloat(e.amount)||0) : s, 0);
+                    sum += recurrentItems.filter(r=>r.type==='SAIDA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+                    sum += installments.reduce((s,inst)=>s+getMonthlyInstallmentAmount(inst, selectedYear, selectedMonth),0);
+                    return sum;
+                  })()} />
+                </div>
+                <div className="lg:col-span-2 p-4">
+                  <div className="text-sm font-bold text-slate-700 capitalize">Arena financeira</div>
+                  <div className="text-xs text-slate-500">Visão rápida de entradas, saídas e ranking do período</div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-emerald-700 tracking-wider">Entrada</span>
+                <span className="text-xs font-bold capitalize text-emerald-700 tracking-wider">Entrada</span>
                 <p className="text-2xl font-bold text-emerald-700 mt-2">{formatCurrency(stats.realIn)}</p>
               </div>
               <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-rose-700 tracking-wider">Despesa</span>
+                <span className="text-xs font-bold capitalize text-rose-700 tracking-wider">Despesa</span>
                 <p className="text-2xl font-bold text-rose-700 mt-2">{formatCurrency(stats.realOut)}</p>
               </div>
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-blue-700 tracking-wider">Saldo</span>
+                <span className="text-xs font-bold capitalize text-blue-700 tracking-wider">Saldo</span>
                 <p className={`text-2xl font-bold mt-2 ${stats.realIn - stats.realOut >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>{formatCurrency(stats.realIn - stats.realOut)}</p>
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-xs font-bold uppercase text-slate-700 tracking-wider">Faltam Pagar</span>
+                <span className="text-xs font-bold capitalize text-slate-700 tracking-wider">Faltam pagar</span>
                 <p className="text-2xl font-bold text-slate-700 mt-2">{formatCurrency(stats.totalOut)}</p>
               </div>
             </div>
@@ -884,7 +997,7 @@ const App = () => {
                 <button onClick={() => setShowPendencies(!showPendencies)} className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-slate-600">
                   <div className="flex items-center gap-2">
                     <AlertCircle size={16} className="text-slate-400" />
-                    <h3 className="text-sm font-bold uppercase tracking-wide">Pendências ({lastMonthPendencies.length})</h3>
+                    <h3 className="text-sm font-bold capitalize tracking-wide">Pendências ({lastMonthPendencies.length})</h3>
                   </div>
                   {showPendencies ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -894,7 +1007,7 @@ const App = () => {
                       <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-white border border-slate-100 shadow-sm">
                          <div className="flex items-center gap-3">
                            <button onClick={() => toggleStatus(p.id, p.isRecurrent || false, p.prevY, p.prevM)} className="text-slate-300 hover:text-blue-500 transition-all active:scale-90"><Clock size={16} /></button>
-                           <span className="text-xs font-bold uppercase text-slate-700 tracking-wide">{p.desc}</span>
+                           <span className="text-xs font-bold capitalize text-slate-700 tracking-wide">{p.desc}</span>
                          </div>
                          <span className="text-xs font-bold text-rose-500">{formatCurrency(p.amount)}</span>
                       </div>
@@ -908,7 +1021,7 @@ const App = () => {
             {/* SELETOR DE MESES */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mês / Ano</span>
+                <span className="text-xs font-bold text-slate-400 capitalize tracking-wider">Mês / ano</span>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setYear(year - 1)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">◄</button>
                   <span className="text-xs font-bold text-slate-600 w-8 text-center">{year}</span>
@@ -920,7 +1033,7 @@ const App = () => {
                   <button
                     key={i}
                     onClick={() => setMonth(i + 1)}
-                    className={`py-2 rounded font-bold text-xs uppercase tracking-wider transition-all ${
+                    className={`py-2 rounded font-bold text-xs capitalize tracking-wider transition-all ${
                       month === i + 1
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -936,15 +1049,15 @@ const App = () => {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col font-medium">
               <div className="px-5 py-4 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-none">Movimentações</h2>
+                  <h2 className="text-xs font-bold text-slate-400 capitalize tracking-wider leading-none">Fluxo de caixa</h2>
                   <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-all active:scale-95 shadow-sm"><Plus size={16} /></button>
                 </div>
                 
                 {selectedIds.length > 0 && (
                   <div className="flex items-center gap-4 px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 animate-in slide-in-from-right duration-300">
-                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">{selectedIds.length} selecionados</span>
-                    <button onClick={() => bulkTogglePaid(true)} className="text-emerald-600 text-xs font-bold uppercase hover:underline">Pago</button>
-                    <button onClick={() => bulkTogglePaid(false)} className="text-blue-600 text-xs font-bold uppercase hover:underline">Pendente</button>
+                    <span className="text-xs font-bold text-blue-600 capitalize tracking-wide">{selectedIds.length} selecionados</span>
+                    <button onClick={() => bulkTogglePaid(true)} className="text-emerald-600 text-xs font-bold capitalize hover:underline">Pago</button>
+                    <button onClick={() => bulkTogglePaid(false)} className="text-blue-600 text-xs font-bold capitalize hover:underline">Pendente</button>
                   </div>
                 )}
 
@@ -959,7 +1072,7 @@ const App = () => {
               <div className="overflow-x-auto font-medium">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                    <tr className="text-xs font-bold text-slate-400 capitalize tracking-wider bg-slate-50/50">
                       <th className="px-5 py-3 border-b text-center w-8">
                          <button onClick={() => { if(selectedIds.length === currentEntries.length && currentEntries.length > 0) setSelectedIds([]); else setSelectedIds(currentEntries.map(e=>e.id)); }} className="text-slate-300 transition-colors hover:text-blue-500"><CheckSquare size={16}/></button>
                       </th>
@@ -980,7 +1093,7 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
                               {t.isPaid ? 'OK' : 'Pendente'}
                             </button>
                           </td>
@@ -988,10 +1101,10 @@ const App = () => {
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
-                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
+                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold capitalize tracking-tighter">Parcelado</span>}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
+                              <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
                           </td>
                           <td className="px-2 py-3.5 text-right font-bold">
@@ -1015,7 +1128,7 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold uppercase transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
                               {t.isPaid ? 'OK' : 'Pendente'}
                             </button>
                           </td>
@@ -1023,10 +1136,10 @@ const App = () => {
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
-                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold uppercase tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold uppercase tracking-tighter">Parcelado</span>}
+                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold capitalize tracking-tighter">Parcelado</span>}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
+                              <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
                           </td>
                           <td className="px-2 py-3.5 text-right font-bold">
@@ -1052,7 +1165,7 @@ const App = () => {
 
               {/* BARRA DE BALANÇO */}
               <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4">
-                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-none">Balanço</div>
+                 <div className="text-xs font-bold text-slate-400 capitalize tracking-wider leading-none">Balanço</div>
                  <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden flex shadow-inner">
                     <div className="bg-emerald-500 transition-all duration-1000 ease-out" style={{ width: `${stats.totalIn + stats.totalOut === 0 ? 50 : (stats.totalIn / (stats.totalIn + stats.totalOut)) * 100}%` }} />
                     <div className="bg-rose-500 transition-all duration-1000 ease-out" style={{ width: `${stats.totalIn + stats.totalOut === 0 ? 50 : (stats.totalOut / (stats.totalIn + stats.totalOut)) * 100}%` }} />
@@ -1066,7 +1179,7 @@ const App = () => {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 bg-slate-50/50">
                   <TrendingDown size={16} className="text-rose-500" />
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos por Categoria</h3>
+                  <h3 className="text-xs font-bold text-slate-400 capitalize tracking-wider">Gastos por categoria</h3>
                 </div>
                 <div className="p-4 space-y-3">
                   {expensesByCategory.length === 0 ? (
@@ -1096,7 +1209,7 @@ const App = () => {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 bg-slate-50/50">
                   <TrendingUp size={16} className="text-emerald-500" />
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Entradas por Categoria</h3>
+                  <h3 className="text-xs font-bold text-slate-400 capitalize tracking-wider">Entradas por categoria</h3>
                 </div>
                 <div className="p-4 space-y-3">
                   {incomeByCategory.length === 0 ? (
@@ -1128,7 +1241,7 @@ const App = () => {
             <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl border border-blue-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Minhas Metas</h2>
+                  <h2 className="text-lg font-bold mb-1 capitalize tracking-wider">Minhas metas</h2>
                   <p className="text-blue-100 text-sm">Defina metas e acompanhe seu progresso</p>
                 </div>
                 <button onClick={() => { setEditingGoal(null); setShowGoals(true); }} className="bg-white text-blue-600 font-bold px-4 py-2 rounded-lg hover:bg-blue-50 transition-all active:scale-95 flex items-center gap-2">
@@ -1151,7 +1264,7 @@ const App = () => {
                     <div key={goal.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
-                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{goal.name}</h3>
+                          <h3 className="text-sm font-bold text-slate-800 capitalize tracking-wide">{goal.name}</h3>
                           <p className="text-[10px] text-slate-500 mt-1">{goal.description || 'Sem descrição'}</p>
                         </div>
                         <div className="flex gap-1">
@@ -1163,15 +1276,15 @@ const App = () => {
                       <div className="space-y-4">
                         <div className="grid grid-cols-3 gap-3 text-center">
                           <div className="bg-blue-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Acumulado</div>
+                            <div className="text-[10px] text-slate-500 capitalize font-bold">Acumulado</div>
                             <div className="text-lg font-bold text-blue-600 mt-1">{progress.toFixed(0)}%</div>
                           </div>
                           <div className="bg-cyan-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Gasto</div>
+                            <div className="text-[10px] text-slate-500 capitalize font-bold">Gasto</div>
                             <div className="text-lg font-bold text-cyan-600 mt-1">{formatCurrency(goal.spent || 0)}</div>
                           </div>
                           <div className="bg-orange-50 rounded-lg p-3">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Falta</div>
+                            <div className="text-[10px] text-slate-500 capitalize font-bold">Falta</div>
                             <div className="text-lg font-bold text-orange-600 mt-1">{(100 - progress).toFixed(0)}%</div>
                           </div>
                         </div>
@@ -1184,7 +1297,7 @@ const App = () => {
                           <div className="w-full h-3.5 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                             <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all shadow-lg" style={{ width: `${Math.min(progress, 100)}%` }} />
                           </div>
-                          <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold uppercase">
+                          <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold capitalize">
                             <span>{formatCurrency(goal.spent || 0)}</span>
                             <span>{formatCurrency(remaining)} faltam</span>
                           </div>
@@ -1192,11 +1305,11 @@ const App = () => {
 
                         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
                           <div className="text-center">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Meta Total</div>
+                            <div className="text-[10px] text-slate-500 capitalize font-bold">Meta total</div>
                             <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(goal.target)}</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-[10px] text-slate-500 uppercase font-bold">Restante</div>
+                            <div className="text-[10px] text-slate-500 capitalize font-bold">Restante</div>
                             <div className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(remaining)}</div>
                           </div>
                         </div>
@@ -1212,7 +1325,7 @@ const App = () => {
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl border border-purple-500">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider">Parcelamentos Ativos</h2>
+                  <h2 className="text-lg font-bold mb-1 capitalize tracking-wider">Parcelamentos ativos</h2>
                   <p className="text-purple-100 text-sm">Acompanhe suas despesas parceladas e o progresso de cada uma</p>
                 </div>
                 <button onClick={() => { setEditingItem(null); setShowInstallments(true); }} className="bg-white text-purple-600 font-bold px-4 py-2 rounded-lg hover:bg-purple-50 transition-all active:scale-95 flex items-center gap-2">
@@ -1236,12 +1349,12 @@ const App = () => {
                       {/* HEADER */}
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
-                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{inst.description}</h3>
+                          <h3 className="text-sm font-bold text-slate-800 capitalize tracking-wide">{inst.description}</h3>
                           <div className="flex gap-2 mt-2 flex-wrap">
-                            <span className="text-[9px] bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-bold uppercase tracking-tight">
+                            <span className="text-[9px] bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-bold capitalize tracking-tight">
                               {metrics.monthsPaid}/{metrics.totalMonths} Parcelas
                             </span>
-                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold uppercase tracking-tight ${metrics.percentage === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold capitalize tracking-tight ${metrics.percentage === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
                               {metrics.percentage.toFixed(0)}% Pago
                             </span>
                           </div>
@@ -1255,15 +1368,15 @@ const App = () => {
                       {/* ESTATÍSTICAS */}
                       <div className="grid grid-cols-3 gap-2 mb-4">
                         <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                          <div className="text-[9px] text-slate-500 uppercase font-bold">Status</div>
+                          <div className="text-[9px] text-slate-500 capitalize font-bold">Status</div>
                           <div className="text-lg font-bold text-purple-600 mt-1">{metrics.monthsPaid}/{metrics.totalMonths}</div>
                         </div>
                         <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                          <div className="text-[9px] text-slate-500 uppercase font-bold">Valor Mensal</div>
+                          <div className="text-[9px] text-slate-500 capitalize font-bold">Valor mensal</div>
                           <div className="text-sm font-bold text-blue-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(inst.monthlyAmount) || 0)}</div>
                         </div>
                         <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-                          <div className="text-[9px] text-slate-500 uppercase font-bold">Total</div>
+                          <div className="text-[9px] text-slate-500 capitalize font-bold">Total</div>
                           <div className="text-sm font-bold text-emerald-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.totalAmount)}</div>
                         </div>
                       </div>
@@ -1271,7 +1384,7 @@ const App = () => {
                       {/* BARRA DE PROGRESSO */}
                       <div className="space-y-3">
                         <div className="flex justify-between items-baseline">
-                          <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Progresso de Pagamento</span>
+                          <span className="text-xs font-bold text-slate-600 capitalize tracking-wide">Progresso de pagamento</span>
                           <span className="text-xs font-bold text-purple-600">{metrics.percentage.toFixed(1)}%</span>
                         </div>
                         <div className="w-full h-4 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
@@ -1280,7 +1393,7 @@ const App = () => {
                             style={{ width: `${Math.min(metrics.percentage, 100)}%` }} 
                           />
                         </div>
-                        <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase">
+                        <div className="flex justify-between text-[10px] text-slate-500 font-bold capitalize">
                           <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.amountPaid)} pago</span>
                           <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.amountRemaining)} restam</span>
                         </div>
@@ -1289,11 +1402,11 @@ const App = () => {
                       {/* INFORMAÇÕES ADICIONAIS */}
                       <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100">
                         <div className="bg-slate-50 rounded-lg p-3">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Início</div>
+                          <div className="text-[10px] text-slate-500 capitalize font-bold">Início</div>
                           <div className="text-sm font-bold text-slate-800 mt-1">{formatDateCorrectly(inst.startDate)}</div>
                         </div>
                         <div className="bg-slate-50 rounded-lg p-3">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Término</div>
+                          <div className="text-[10px] text-slate-500 capitalize font-bold">Término</div>
                           <div className="text-sm font-bold text-slate-800 mt-1">{formatDateCorrectly(inst.endDate)}</div>
                         </div>
                       </div>
@@ -1308,7 +1421,7 @@ const App = () => {
               <div className="mt-8 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
                   <TrendingDown size={16} className="text-blue-600" />
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Parcelas nos Próximos Meses</h3>
+                  <h3 className="text-xs font-bold text-slate-700 capitalize tracking-wider">Parcelas nos próximos meses</h3>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {Array.from({ length: 12 }).map((_, i) => {
@@ -1336,7 +1449,7 @@ const App = () => {
                       <div key={`${checkYear}-${displayMonth}`} className="px-6 py-4 hover:bg-slate-50 transition-colors">
                         <div className="flex justify-between items-center mb-3">
                           <div className="flex items-center gap-3">
-                            <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                            <span className="text-sm font-bold text-slate-700 capitalize tracking-wide">
                               {MONTHS[displayMonth - 1]} {checkYear}
                             </span>
                             <span className="text-[9px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">
@@ -1365,15 +1478,15 @@ const App = () => {
           <div className="animate-in fade-in duration-500 max-w-2xl mx-auto space-y-4 font-medium">
              <div className="bg-[#111827] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-slate-800">
                 <div className="relative z-10">
-                  <h2 className="text-lg font-bold mb-1 uppercase tracking-wider leading-none">Gastos Fixos</h2>
-                  <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-sm uppercase mt-2">Salários, contas e despesas que se repetem todo mês.</p>
+                  <h2 className="text-lg font-bold mb-1 capitalize tracking-wider leading-none">Gastos fixos</h2>
+                  <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-sm capitalize mt-2">Salários, contas e despesas que se repetem todo mês.</p>
                 </div>
                 <ListTodo className="absolute right-[-10px] bottom-[-10px] w-24 h-24 text-white/5" />
              </div>
              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden font-sans">
-                <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50/50 text-slate-400 uppercase text-xs tracking-wider font-bold">
+                <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50/50 text-slate-400 capitalize text-xs tracking-wider font-bold">
                    <span>Lista</span>
-                   <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="flex items-center gap-1.5 text-blue-600 font-bold text-xs hover:bg-white px-3 py-2 rounded-lg transition-all border border-blue-100 bg-white shadow-sm active:scale-95 uppercase tracking-wide">
+                   <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="flex items-center gap-1.5 text-blue-600 font-bold text-xs hover:bg-white px-3 py-2 rounded-lg transition-all border border-blue-100 bg-white shadow-sm active:scale-95 capitalize tracking-wide">
                      <PlusCircle size={14} /> Novo
                    </button>
                 </div>
@@ -1385,8 +1498,8 @@ const App = () => {
                            {r.type === 'ENTRADA' ? <ArrowUp size={16}/> : <ArrowDown size={16}/>}
                          </div>
                          <div>
-                           <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{r.desc}</h4>
-                           <p className="text-xs text-slate-500 font-medium uppercase mt-1 tracking-wide">Dia {r.dueDay || '01'} • {r.category}</p>
+                           <h4 className="text-sm font-bold text-slate-700 capitalize tracking-wide">{r.desc}</h4>
+                           <p className="text-xs text-slate-500 font-medium capitalize mt-1 tracking-wide">Dia {r.dueDay || '01'} • {r.category}</p>
                          </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -1410,22 +1523,22 @@ const App = () => {
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-medium animate-in zoom-in-95">
              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-base font-bold text-slate-800 uppercase tracking-wider leading-none">Configurações</h2>
-                <button onClick={() => setShowSettings(false)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button>
+               <h2 className="text-base font-bold text-slate-800 capitalize tracking-wider leading-none">Configurações</h2>
+               <button onClick={() => setShowSettings(false)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button>
              </div>
              <div className="space-y-5">
                 <div className="space-y-2">
-                   <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Título</label>
+                   <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Título</label>
                    <input type="text" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={appTitle} onChange={(e) => setAppTitle(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                   <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Logo</label>
+                   <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Logo</label>
                    <div className="flex items-center gap-3 bg-[#F8FAFC] p-3 rounded-lg border border-slate-100 shadow-inner">
                       <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center overflow-hidden border border-slate-200 shadow-sm">
                         {appLogo ? <img src={appLogo} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-slate-400" />}
                       </div>
                       <label className="flex-1 cursor-pointer">
-                        <span className="bg-blue-600 text-white text-xs font-bold uppercase py-2 px-3 rounded-md flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all tracking-wide">
+                        <span className="bg-blue-600 text-white text-xs font-bold capitalize py-2 px-3 rounded-md flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all tracking-wide">
                            <Upload size={13} /> Upload
                         </span>
                         <input type="file" className="hidden" accept="image/*" onChange={(e) => {
@@ -1438,33 +1551,41 @@ const App = () => {
                         }} />
                       </label>
                    </div>
-                   {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-500 font-bold uppercase mt-2 ml-1 hover:underline tracking-wide">Remover</button>}
+                   {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-500 font-bold capitalize mt-2 ml-1 hover:underline tracking-wide">Remover</button>}
                 </div>
 
                 {/* IMPORT/EXPORT */}
                 <div className="border-t border-slate-200 pt-4">
-                  <span className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold block mb-3">Dados</span>
+                  <span className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold block mb-3">Dados</span>
                   <div className="flex gap-2">
                     <div className="flex flex-col gap-2 mr-2">
                       <label className="text-[11px] text-slate-500 font-medium">Backup automático</label>
                       <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4" /> <span className="uppercase font-bold text-slate-600">Ativar</span></label>
-                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupDownload} onChange={(e) => setAutoBackupDownload(e.target.checked)} className="w-4 h-4" /> <span className="uppercase font-bold text-slate-600">Fazer download</span></label>
+                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4" /> <span className="capitalize font-bold text-slate-600">Ativar</span></label>
+                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupDownload} onChange={(e) => setAutoBackupDownload(e.target.checked)} className="w-4 h-4" /> <span className="capitalize font-bold text-slate-600">Fazer download</span></label>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-slate-400">Intervalo (min)</span>
                         <input type="number" min="1" className="w-20 bg-[#F8FAFC] border border-slate-200 rounded-lg p-2 text-sm" value={autoBackupIntervalMins} onChange={(e) => setAutoBackupIntervalMins(Number(e.target.value) || 1)} />
                       </div>
                     </div>
-                    <button 
-                      onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Download size={14} /> Exportar
-                    </button>
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Download size={14} /> Exportar CSV
+                      </button>
+                      <button 
+                        onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo)}
+                        className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Download size={14} /> Exportar JSON
+                      </button>
+                    </div>
                     <label className="flex-1 cursor-pointer">
-                      <span className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 w-full">
-                        <FileUp size={14} /> Importar
+                      <span className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 w-full">
+                        <FileUp size={14} /> Importar (CSV / JSON)
                       </span>
                       <input 
                         type="file" 
@@ -1472,34 +1593,49 @@ const App = () => {
                         accept=".csv,.json"
                         onChange={(e) => {
                           const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              try {
-                                const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(reader.result);
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            try {
+                              const text = reader.result;
+                              if (file.name.toLowerCase().endsWith('.json') || (typeof text === 'string' && text.trim().startsWith('{'))) {
+                                // JSON import
+                                const result = restoreDataFromJSON(text, {
+                                  setRecurrentItems,
+                                  setMonthlyData,
+                                  setGoals,
+                                  setInstallments,
+                                  setAppTitle,
+                                  setAppLogo
+                                });
+                                if (result.success) alert('✅ JSON importado com sucesso!');
+                                else alert(`❌ Erro ao importar JSON: ${result.message}`);
+                              } else {
+                                // CSV import
+                                const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(text);
                                 setMonthlyData({ ...monthlyData, ...newMonthlyData });
                                 setRecurrentItems([...recurrentItems, ...newRecurrentItems]);
                                 alert(`✅ Importados ${importedCount} registros com sucesso!`);
-                              } catch (err) {
-                                alert(`❌ Erro ao importar: ${err.message}`);
                               }
-                            };
-                            reader.readAsText(file);
-                          }
+                            } catch (err) {
+                              alert(`❌ Erro ao importar: ${err.message}`);
+                            }
+                          };
+                          reader.readAsText(file);
                         }}
                       />
                     </label>
                   </div>
                 </div>
 
-                <button onClick={() => setShowSettings(false)} className="w-full bg-[#111827] text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl active:scale-95 transition-all mt-3">Pronto</button>
+                <button onClick={() => setShowSettings(false)} className="w-full bg-[#111827] text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl active:scale-95 transition-all mt-3">Pronto</button>
                 
                 {/* BOTÃO RECUPERAR DADOS */}
                 <button 
                   onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl active:scale-95 transition-all mt-2 hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl active:scale-95 transition-all mt-2 hover:bg-blue-700 flex items-center justify-center gap-2"
                 >
-                  <Database size={16} /> 🔄 Recuperar Meus Dados
+                  <Database size={16} /> 🔄 Recuperar meus dados
                 </button>
              </div>
           </div>
@@ -1518,13 +1654,13 @@ const App = () => {
       {showGoals && (
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95">
-            <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">{editingGoal ? 'Editar Meta' : 'Nova Meta'}</h2><button onClick={() => setEditingGoal(null)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
+            <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider capitalize leading-none">{editingGoal ? 'Editar meta' : 'Nova meta'}</h2><button onClick={() => setEditingGoal(null)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
             <form onSubmit={(e) => { e.preventDefault(); handleSaveGoal(editingGoal || {}); }} className="space-y-4">
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Nome da Meta</label><input type="text" placeholder="Ex: Viagem, Carro" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.name || ''} onChange={e => setEditingGoal({...editingGoal, name: e.target.value})} required /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input type="text" placeholder="Detalhes da meta" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.description || ''} onChange={e => setEditingGoal({...editingGoal, description: e.target.value})} /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Meta</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.target || ''} onChange={e => setEditingGoal({...editingGoal, target: parseFloat(e.target.value)})} required /></div>
-              <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor Acumulado</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.spent || ''} onChange={e => setEditingGoal({...editingGoal, spent: parseFloat(e.target.value)})} /></div>
-              <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all">Salvar Meta</button>
+              <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Nome da meta</label><input type="text" placeholder="Ex: Viagem, Carro" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.name || ''} onChange={e => setEditingGoal({...editingGoal, name: e.target.value})} required /></div>
+              <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input type="text" placeholder="Detalhes da meta" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.description || ''} onChange={e => setEditingGoal({...editingGoal, description: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Valor da meta</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.target || ''} onChange={e => setEditingGoal({...editingGoal, target: parseFloat(e.target.value)})} required /></div>
+              <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Valor acumulado</label><input type="number" step="0.01" placeholder="0.00" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={editingGoal?.spent || ''} onChange={e => setEditingGoal({...editingGoal, spent: parseFloat(e.target.value)})} /></div>
+              <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all">Salvar meta</button>
             </form>
           </div>
         </div>
@@ -1556,7 +1692,7 @@ const App = () => {
 
             {/* Mostrar últimos backups */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-bold text-blue-700 uppercase">📦 Backups Automáticos Salvos:</p>
+              <p className="text-xs font-bold text-blue-700 capitalize">📦 Backups automáticos salvos:</p>
               {(() => {
                 try {
                   const backups = JSON.parse(localStorage.getItem('fin_auto_backups') || '[]');
@@ -1622,13 +1758,13 @@ const App = () => {
                     }, 1500);
                   }
                 }}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm uppercase hover:bg-blue-700 active:scale-95 transition-all"
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold text-sm capitalize hover:bg-blue-700 active:scale-95 transition-all"
               >
                 ✅ Restaurar Dados
               </button>
               <button
                 onClick={() => { setShowRecoveryModal(false); setRecoveryData(''); setRecoveryMessage(''); }}
-                className="flex-1 bg-slate-200 text-slate-700 py-2 rounded-lg font-bold text-sm uppercase hover:bg-slate-300 active:scale-95 transition-all"
+                className="flex-1 bg-slate-200 text-slate-700 py-2 rounded-lg font-bold text-sm capitalize hover:bg-slate-300 active:scale-95 transition-all"
               >
                 Cancelar
               </button>
@@ -1652,16 +1788,16 @@ const ModalContent = ({ item, isRecurrentView, onSave, onClose }) => {
   const [formData, setFormData] = useState(item ? { ...item } : { desc: '', amount: '', type: 'SAIDA', category: 'Fixo', date: '', isPaid: false, dueDay: 5 });
   return (
     <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95">
-      <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">{item ? 'Editar' : 'Novo'}</h2><button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
+      <div className="flex justify-between items-center mb-6"><h2 className="text-base font-bold text-slate-800 tracking-wider capitalize leading-none">{item ? 'Editar' : 'Novo'}</h2><button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={24}/></button></div>
       <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="space-y-5">
         <div className="flex gap-2 bg-[#F1F5F9] p-1.5 rounded-lg border border-slate-200">
-           <button type="button" onClick={() => setFormData({...formData, type: 'ENTRADA', isPaid: true})} className={`flex-1 py-2.5 rounded-md text-xs font-bold uppercase transition-all tracking-wide ${formData.type === 'ENTRADA' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Receita</button>
-           <button type="button" onClick={() => setFormData({...formData, type: 'SAIDA', isPaid: false})} className={`flex-1 py-2.5 rounded-md text-xs font-bold uppercase transition-all tracking-wide ${formData.type === 'SAIDA' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Despesa</button>
+           <button type="button" onClick={() => setFormData({...formData, type: 'ENTRADA', isPaid: true})} className={`flex-1 py-2.5 rounded-md text-xs font-bold capitalize transition-all tracking-wide ${formData.type === 'ENTRADA' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Receita</button>
+           <button type="button" onClick={() => setFormData({...formData, type: 'SAIDA', isPaid: false})} className={`flex-1 py-2.5 rounded-md text-xs font-bold capitalize transition-all tracking-wide ${formData.type === 'SAIDA' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Despesa</button>
         </div>
-        <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input required type="text" placeholder="Ex: Almoço, Salário" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value.toUpperCase()})} /></div>
-        <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor</label><input required type="number" step="0.01" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} /></div><div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Categoria</label><select className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none appearance-none shadow-inner" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Fixo">Fixo</option><option value="Contas">Contas</option><option value="Alimentação">Alimentação</option><option value="Transporte">Transporte</option><option value="Saúde">Saúde</option><option value="Educação">Educação</option><option value="Lazer">Lazer</option><option value="Cartão">Cartão</option><option value="Extra">Extra</option><option value="Outros">Outros</option></select></div></div>
-        {isRecurrentView ? <div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Dia do Mês</label><input required type="number" min="1" max="31" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.dueDay} onChange={e => setFormData({...formData, dueDay: Number(e.target.value)})} /></div> : <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div><div className="flex flex-col justify-end pb-2"><label className="flex items-center gap-2 cursor-pointer group"><input type="checkbox" className="w-4 h-4 rounded-md text-blue-600 focus:ring-0 border-slate-300 shadow-sm" checked={formData.isPaid} onChange={e => setFormData({...formData, isPaid: e.target.checked})} /><span className="text-xs uppercase text-slate-400 tracking-wider group-hover:text-blue-500 font-bold transition-colors">Pago</span></label></div></div>}
-        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all mt-2">Salvar</button>
+        <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Descrição</label><input required type="text" placeholder="Ex: Almoço, Salário" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} /></div>
+        <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Valor</label><input required type="number" step="0.01" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} /></div><div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Categoria</label><select className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none appearance-none shadow-inner" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Fixo">Fixo</option><option value="Contas">Contas</option><option value="Alimentação">Alimentação</option><option value="Transporte">Transporte</option><option value="Saúde">Saúde</option><option value="Educação">Educação</option><option value="Lazer">Lazer</option><option value="Cartão">Cartão</option><option value="Extra">Extra</option><option value="Outros">Outros</option></select></div></div>
+        {isRecurrentView ? <div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Dia do mês</label><input required type="number" min="1" max="31" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.dueDay} onChange={e => setFormData({...formData, dueDay: Number(e.target.value)})} /></div> : <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Data</label><input type="date" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} /></div><div className="flex flex-col justify-end pb-2"><label className="flex items-center gap-2 cursor-pointer group"><input type="checkbox" className="w-4 h-4 rounded-md text-blue-600 focus:ring-0 border-slate-300 shadow-sm" checked={formData.isPaid} onChange={e => setFormData({...formData, isPaid: e.target.checked})} /><span className="text-xs capitalize text-slate-400 tracking-wider group-hover:text-blue-500 font-bold transition-colors">Pago</span></label></div></div>}
+        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all mt-2">Salvar</button>
       </form>
     </div>
   );
@@ -1673,9 +1809,9 @@ const SummaryCard = ({ title, value, subtitle, theme, location }) => {
   const textColors = { neutral: "text-slate-800", income: "text-emerald-700", expense: "text-rose-700" };
   return (
     <div className={`p-4 rounded-2xl border ${styles[theme]} shadow-sm transition-all hover:shadow-md font-medium leading-none`}>
-      <span className="text-xs font-bold uppercase text-slate-400 tracking-wider leading-none">{title}</span>
+      <span className="text-xs font-bold capitalize text-slate-400 tracking-wider leading-none">{title}</span>
       <p className={`text-lg font-bold ${textColors[theme]} mt-2 tracking-tight leading-none`}>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}</p>
-      <p className="text-xs text-slate-500 mt-2 font-medium leading-none uppercase tracking-wide">{subtitle}</p>
+      <p className="text-xs text-slate-500 mt-2 font-medium leading-none capitalize tracking-wide">{subtitle}</p>
     </div>
   );
 };
@@ -1753,7 +1889,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
   return (
     <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-white/10 font-sans font-medium animate-in zoom-in-95 my-8 max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-base font-bold text-slate-800 tracking-wider uppercase leading-none">
+        <h2 className="text-base font-bold text-slate-800 tracking-wider capitalize leading-none">
           {item ? 'Editar Parcelamento' : 'Novo Parcelamento'}
         </h2>
         <button onClick={onClose} className="text-slate-300 hover:text-slate-500"><X size={24}/></button>
@@ -1762,7 +1898,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* DESCRIÇÃO */}
         <div className="space-y-2">
-          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Descrição da Compra</label>
+          <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Descrição da compra</label>
           <input 
             type="text" 
             placeholder="Ex: Geladeira, Sofá, TV 55 polegadas" 
@@ -1775,12 +1911,12 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
 
         {/* TIPO DE PAGAMENTO */}
         <div className="space-y-3">
-          <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Tipo de Parcelamento</label>
+          <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Tipo de parcelamento</label>
           <div className="grid grid-cols-2 gap-3">
             <button 
               type="button"
               onClick={() => setFormData({...formData, paymentType: 'parcelado'})}
-              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
+              className={`py-3 px-4 rounded-lg font-bold text-xs capitalize tracking-wider transition-all border-2 ${
                 formData.paymentType === 'parcelado' 
                   ? 'bg-purple-100 border-purple-500 text-purple-700' 
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
@@ -1791,7 +1927,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             <button 
               type="button"
               onClick={() => setFormData({...formData, paymentType: 'parcelado-outros'})}
-              className={`py-3 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border-2 ${
+              className={`py-3 px-4 rounded-lg font-bold text-xs capitalize tracking-wider transition-all border-2 ${
                 formData.paymentType === 'parcelado-outros' 
                   ? 'bg-indigo-100 border-indigo-500 text-indigo-700' 
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
@@ -1807,7 +1943,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {/* DATAS */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data de Início</label>
+                <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Data de início</label>
                 <input 
                   type="date" 
                   className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
@@ -1817,7 +1953,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Data de Término</label>
+                <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Data de término</label>
                 <input 
                   type="date" 
                   className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
@@ -1831,7 +1967,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {/* VALOR MENSAL */}
             {formData.paymentType === 'parcelado' && (
               <div className="space-y-2">
-                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Valor da Parcela Mensal</label>
+                <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Valor da parcela mensal</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                   <input 
@@ -1850,7 +1986,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {/* PARCELAS JÁ PAGAS */}
             {(formData.paymentType === 'parcelado' || formData.paymentType === 'parcelado-outros') && (
               <div className="space-y-2">
-                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Parcelas Já Pagas</label>
+                <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Parcelas já pagas</label>
                 <input 
                   type="number" 
                   min="0"
@@ -1866,7 +2002,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {formData.paymentType === 'parcelado-outros' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs uppercase text-slate-400 tracking-wider font-bold">Valores Customizados por Parcela</label>
+                  <label className="text-xs capitalize text-slate-400 tracking-wider font-bold">Valores customizados por parcela</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -1874,7 +2010,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                       newCustom.push('');
                       setFormData({...formData, customInstallments: newCustom});
                     }}
-                    className="text-indigo-600 text-xs font-bold uppercase hover:text-indigo-700"
+                    className="text-indigo-600 text-xs font-bold capitalize hover:text-indigo-700"
                   >
                     + Adicionar
                   </button>
@@ -1920,14 +2056,14 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {/* ATALHOS DE PARCELAMENTO */}
             {formData.paymentType === 'parcelado' && (
               <div className="space-y-3">
-                <label className="text-xs uppercase text-slate-400 ml-1 tracking-wider font-bold">Atalhos Rápidos</label>
+                <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Atalhos rápidos</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[3, 6, 10, 12].map(months => (
                     <button
                       key={months}
                       type="button"
                       onClick={() => handleInstallmentChange(months)}
-                      className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs uppercase hover:bg-purple-100 transition-all active:scale-95"
+                      className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs capitalize hover:bg-purple-100 transition-all active:scale-95"
                     >
                       {months}x
                     </button>
@@ -1939,18 +2075,18 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
             {/* PREVIEW DOS DADOS */}
             {previewData && (
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">📊 Resumo do Parcelamento</h4>
+                <h4 className="text-xs font-bold text-slate-700 capitalize tracking-wider">📊 Resumo do parcelamento</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold">Total de Parcelas</div>
+                    <div className="text-[10px] text-slate-500 capitalize font-bold">Total de parcelas</div>
                     <div className="text-lg font-bold text-purple-600 mt-1">{previewData.totalMonths}x</div>
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Mensal</div>
+                    <div className="text-[10px] text-slate-500 capitalize font-bold">Valor mensal</div>
                     <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(previewData.monthlyAmount) || 0)}</div>
                   </div>
                   <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <div className="text-[10px] text-slate-500 uppercase font-bold">Valor Total</div>
+                    <div className="text-[10px] text-slate-500 capitalize font-bold">Valor total</div>
                     <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalValue)}</div>
                   </div>
                 </div>
@@ -1964,7 +2100,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
 
         <button 
           type="submit" 
-          className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-sm uppercase tracking-wider shadow-xl hover:bg-purple-700 active:scale-95 transition-all mt-2"
+          className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl hover:bg-purple-700 active:scale-95 transition-all mt-2"
         >
           {item ? 'Atualizar Parcelamento' : 'Criar Parcelamento'}
         </button>
