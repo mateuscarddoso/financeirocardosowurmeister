@@ -47,7 +47,7 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-// 🛠️ FUNÇÃO PARA FORMATAR DATAS CORRETAMENTE (evita off-by-one)
+// FUNÇÃO PARA FORMATAR DATAS CORRETAMENTE (evita off-by-one)
 const formatDateCorrectly = (dateString, options = {}) => {
   const [year, month, day] = dateString.split('-').map(Number);
   const date = new Date(year, month - 1, day);
@@ -58,7 +58,7 @@ const formatDateCorrectly = (dateString, options = {}) => {
   });
 };
 
-// 🛠️ FUNÇÃO PARA EXPORTAR DADOS PARA CSV
+// FUNÇÃO PARA EXPORTAR DADOS PARA CSV
 const exportToCSV = (monthlyData, recurrentItems, installments, goals) => {
   let csv = 'TIPO,DATA,DESCRIÇÃO,CATEGORIA,VALOR,STATUS\n';
   
@@ -112,7 +112,7 @@ const exportToJSON = (monthlyData, recurrentItems, installments, goals, appTitle
   URL.revokeObjectURL(url);
 };
 
-// 🛠️ FUNÇÃO PARA IMPORTAR DADOS DO CSV
+// FUNÇÃO PARA IMPORTAR DADOS DO CSV
 const parseCSVData = (csvContent) => {
   const lines = csvContent.trim().split('\n');
   const newMonthlyData = {};
@@ -165,7 +165,7 @@ const parseCSVData = (csvContent) => {
   return { newMonthlyData, newRecurrentItems, importedCount };
 };
 
-// 🛠️ UTILITÁRIOS PARA PARCELAMENTOS
+// UTILITÁRIOS PARA PARCELAMENTOS
 const calculateInstallmentProgress = (startDate, currentYear, currentMonth) => {
   const [startYear, startMonth] = startDate.split('-').map(Number);
   const monthsElapsed = (currentYear - startYear) * 12 + (currentMonth - startMonth);
@@ -178,8 +178,8 @@ const calculateInstallmentMetrics = (inst, year, month) => {
   const [endYear, endMonth] = inst.endDate.split('-').map(Number);
   
   const totalMonths = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
-  const monthsElapsed = (year - startYear) * 12 + (month - startMonth);
-  const monthsPaid = Math.max(0, Math.min(monthsElapsed + 1, totalMonths));
+  // Usa o número de parcelas pagas definido pelo usuário (installmentsPaid), não o tempo decorrido
+  const monthsPaid = inst.installmentsPaid || 0;
   const percentage = (monthsPaid / totalMonths) * 100;
   const amountPaid = monthlyAmt * monthsPaid;
   const amountRemaining = monthlyAmt * (totalMonths - monthsPaid);
@@ -212,7 +212,7 @@ const getMonthlyInstallmentAmount = (inst, year, month) => {
   return 0;
 };
 
-// 🔄 FUNÇÃO PARA RESTAURAR DADOS A PARTIR DE JSON
+// FUNÇÃO PARA RESTAURAR DADOS A PARTIR DE JSON
 const restoreDataFromJSON = (jsonString, setters) => {
   try {
     const data = JSON.parse(jsonString);
@@ -242,9 +242,9 @@ const restoreDataFromJSON = (jsonString, setters) => {
     localStorage.setItem('fin_goals_nubank', JSON.stringify(data.goals || []));
     localStorage.setItem('fin_installments_nubank', JSON.stringify(data.installments || []));
     
-    return { success: true, message: `✅ ${Object.keys(data).length} seções restauradas com sucesso!` };
+    return { success: true, message: `${Object.keys(data).length} seções restauradas com sucesso!` };
   } catch (err) {
-    return { success: false, message: `❌ Erro ao restaurar dados: ${err.message}` };
+    return { success: false, message: `Erro ao restaurar dados: ${err.message}` };
   }
 };
 
@@ -371,7 +371,7 @@ const App = () => {
   // BACKUP AUTOMÁTICO
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
     const v = localStorage.getItem('fin_auto_backup_enabled');
-    return v ? v === 'true' : true; // ✅ PADRÃO: true (backup automático ATIVADO)
+    return v ? v === 'true' : true; // PADRÃO: true (backup automático ATIVADO)
   });
   const [autoBackupDownload, setAutoBackupDownload] = useState(() => {
     const v = localStorage.getItem('fin_auto_backup_download');
@@ -390,7 +390,7 @@ const App = () => {
   const [goals, setGoals] = useState([]);
   const [installments, setInstallments] = useState([]);
 
-  // 🔄 Inicializar IndexedDB e carregar dados na montagem
+  // Inicializar IndexedDB e carregar dados na montagem
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -401,7 +401,7 @@ const App = () => {
         const initialLoadDone = await getFromIndexedDB(STORES.appSettings, 'initial_load_done');
 
         if (initialLoadDone) {
-          console.log('✅ Carga inicial já realizada. Carregando dados do usuário do DB...');
+          console.log('Carga inicial já realizada. Carregando dados do usuário do DB...');
           // Se já foi feito, apenas carrega os dados existentes
           const loadedMonthlyData = await getFromIndexedDB(STORES.monthlyData, 'fin_mon_nubank') || INITIAL_MONTHLY_DATA;
           const loadedRecurrentItems = await getFromIndexedDB(STORES.recurrentItems, 'fin_rec_nubank') || DEFAULT_RECURRENT;
@@ -1282,6 +1282,24 @@ const App = () => {
                     <div className="bg-rose-500 transition-all duration-1000 ease-out" style={{ width: `${stats.totalIn + stats.totalOut === 0 ? 50 : (stats.totalOut / (stats.totalIn + stats.totalOut)) * 100}%` }} />
                  </div>
               </div>
+
+              {/* RESUMO MINIMALISTA - CALCULADORA */}
+              <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-t border-blue-100 flex items-center justify-between gap-6 text-sm font-bold">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">Entradas:</span>
+                  <span className="text-emerald-700">{formatCurrency(stats.realIn)}</span>
+                </div>
+                <div className="w-px h-6 bg-slate-300"></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">Saídas:</span>
+                  <span className="text-rose-700">{formatCurrency(stats.realOut)}</span>
+                </div>
+                <div className="w-px h-6 bg-slate-300"></div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600">Previsão:</span>
+                  <span className={stats.realIn - stats.realOut >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>{formatCurrency(stats.realIn - stats.realOut)}</span>
+                </div>
+              </div>
             </div>
 
             {/* ANALYTICS: GASTOS E ENTRADAS POR CATEGORIA */}
@@ -1676,7 +1694,7 @@ const App = () => {
                           }
                         }} />
                       </label>
-                      {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-600 font-bold px-2 py-1 hover:bg-rose-50 rounded transition-colors">✕</button>}
+                      {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-600 font-bold px-2 py-1 hover:bg-rose-50 rounded transition-colors">Remover</button>}
                     </div>
                   </div>
                 </div>
@@ -1693,17 +1711,17 @@ const App = () => {
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-bold text-slate-800 flex items-center gap-2">
                       <input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-                      ✓ Ativar Backup Automático
+                      Ativar Backup Automático
                     </label>
                   </div>
                   {autoBackupEnabled && (
                     <div className="space-y-3 ml-6">
                       <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={autoBackupDownload} onChange={(e) => setAutoBackupDownload(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-                        <span className="text-slate-700 font-medium">📥 Fazer download automático</span>
+                        <span className="text-slate-700 font-medium">Fazer download automático</span>
                       </label>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-700 font-medium">⏱️ Intervalo (minutos):</span>
+                        <span className="text-sm text-slate-700 font-medium">Intervalo (minutos):</span>
                         <input type="number" min="1" className="w-20 bg-white border border-slate-300 rounded-lg p-2 text-sm font-medium" value={autoBackupIntervalMins} onChange={(e) => setAutoBackupIntervalMins(Number(e.target.value) || 1)} />
                       </div>
                     </div>
@@ -1771,7 +1789,7 @@ const App = () => {
                   onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Recuperar Dados Antigos
+                  Recuperar Dados
                 </button>
               </div>
 
@@ -1831,19 +1849,19 @@ const App = () => {
                           const incomeMatch = proj && Math.abs(proj.income - realized.income) < 1;
                           const expenseMatch = proj && Math.abs(proj.expense - realized.expense) < 1;
 
-                          let msg = `📊 Comparativo de ${MONTHS[selectedMonth - 1]}/${selectedYear}:\n\n`;
-                          msg += `💰 Receita:\n`;
+                          let msg = `Comparativo de ${MONTHS[selectedMonth - 1]}/${selectedYear}:\n\n`;
+                          msg += `Receita:\n`;
                           msg += `  Projetado: R$ ${proj?.income.toFixed(2) || 'Não definido'}\n`;
                           msg += `  Realizado: R$ ${realized.income.toFixed(2)}\n`;
-                          msg += `  ${incomeMatch ? '✅ BATEU!' : `❌ Diferença: R$ ${Math.abs((proj?.income || 0) - realized.income).toFixed(2)}`}\n\n`;
-                          msg += `📉 Despesa:\n`;
+                          msg += `  ${incomeMatch ? 'OK!' : `Diferença: R$ ${Math.abs((proj?.income || 0) - realized.income).toFixed(2)}`}\n\n`;
+                          msg += `Despesa:\n`;
                           msg += `  Projetado: R$ ${proj?.expense.toFixed(2) || 'Não definido'}\n`;
                           msg += `  Realizado: R$ ${realized.expense.toFixed(2)}\n`;
-                          msg += `  ${expenseMatch ? '✅ BATEU!' : `❌ Diferença: R$ ${Math.abs((proj?.expense || 0) - realized.expense).toFixed(2)}`}`;
+                          msg += `  ${expenseMatch ? 'OK!' : `Diferença: R$ ${Math.abs((proj?.expense || 0) - realized.expense).toFixed(2)}`}`;
 
                           alert(msg);
                         }} className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all">
-                          🔍 Comparar com Realizado
+                          Comparar com Realizado
                         </button>
                       </div>
                     </div>
@@ -1856,7 +1874,7 @@ const App = () => {
             {/* FOOTER */}
             <div className="flex gap-3 p-6 bg-slate-50 border-t border-slate-200 rounded-b-3xl">
               <button onClick={() => setShowSettings(false)} className="flex-1 bg-[#111827] text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all hover:bg-slate-900">
-                ✅ Pronto
+                Pronto
               </button>
             </div>
           </div>
@@ -1903,7 +1921,7 @@ const App = () => {
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 max-h-screen overflow-y-auto">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800">🔄 Recuperar Meus Dados</h2>
+              <h2 className="text-xl font-bold text-slate-800">Recuperar Meus Dados</h2>
               <button onClick={() => { setShowRecoveryModal(false); setRecoveryData(''); setRecoveryMessage(''); }} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             
