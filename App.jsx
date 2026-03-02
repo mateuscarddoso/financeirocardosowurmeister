@@ -955,31 +955,6 @@ const App = () => {
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
-            {/* Arena incorporada à área de fluxo */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="flex items-center justify-center p-4">
-                  <CircularChart incoming={(() => {
-                    const key = `${selectedYear}-${String(selectedMonth).padStart(2,'0')}`;
-                    const entries = monthlyData[key] || [];
-                    const eSum = entries.reduce((s,e) => e.type === 'ENTRADA' ? s + (parseFloat(e.amount)||0) : s, 0);
-                    const rSum = recurrentItems.filter(r=>r.type==='ENTRADA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-                    return eSum + rSum;
-                  })()} outgoing={(() => {
-                    const key = `${selectedYear}-${String(selectedMonth).padStart(2,'0')}`;
-                    const entries = monthlyData[key] || [];
-                    let sum = entries.reduce((s,e) => e.type === 'SAIDA' ? s + (parseFloat(e.amount)||0) : s, 0);
-                    sum += recurrentItems.filter(r=>r.type==='SAIDA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-                    sum += installments.reduce((s,inst)=>s+getMonthlyInstallmentAmount(inst, selectedYear, selectedMonth),0);
-                    return sum;
-                  })()} />
-                </div>
-                <div className="lg:col-span-2 p-4">
-                  <div className="text-sm font-bold text-slate-700 capitalize">Arena financeira</div>
-                  <div className="text-xs text-slate-500">Visão rápida de entradas, saídas e ranking do período</div>
-                </div>
-              </div>
-            </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
@@ -1068,47 +1043,48 @@ const App = () => {
               realized.expense += recurrentItems.filter(r=>r.type==='SAIDA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
               realized.expense += installments.reduce((s,inst)=>s+getMonthlyInstallmentAmount(inst, year, month),0);
 
-              const hasProjection = proj && (proj.income > 0 || proj.expense > 0);
-
-              if (!hasProjection) return null;
-
-              const incomeMatch = Math.abs(proj.income - realized.income) < 1;
-              const expenseMatch = Math.abs(proj.expense - realized.expense) < 1;
-              const incomeDiff = Math.abs(proj.income - realized.income);
-              const expenseDiff = Math.abs(proj.expense - realized.expense);
+              const incomeMatch = proj && Math.abs(proj.income - realized.income) < 1;
+              const expenseMatch = proj && Math.abs(proj.expense - realized.expense) < 1;
+              const incomeDiff = proj ? Math.abs(proj.income - realized.income) : 0;
+              const expenseDiff = proj ? Math.abs(proj.expense - realized.expense) : 0;
 
               return (
-                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200 shadow-sm overflow-hidden p-5 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">📈</span>
-                    <div>
-                      <h3 className="text-sm font-bold text-amber-900">Projeção vs Realizado</h3>
-                      <p className="text-xs text-amber-700">{MONTHS[month - 1]} de {year}</p>
-                    </div>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-800">Projeção vs Realizado</h3>
+                    <span className="text-xs text-slate-500 font-medium">{MONTHS[month - 1]} de {year}</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* RECEITA */}
-                    <div className="bg-white rounded-lg border border-amber-100 p-4 space-y-3">
+                    <div className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">💰 Receita</span>
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${incomeMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {incomeMatch ? '✅ BATEU!' : `❌ ${incomeDiff > 0 ? 'Diferença' : 'OK'}`}
-                        </span>
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Receita</span>
+                        {proj && proj.income > 0 && (
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${incomeMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {incomeMatch ? 'OK' : 'Diferença'}
+                          </span>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-600 font-medium">Projetado:</span>
-                          <span className="text-sm font-bold text-slate-700">{formatCurrency(proj.income)}</span>
+                        <div>
+                          <label className="text-[11px] text-slate-600 font-medium block mb-1">Projetado</label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-slate-700">{formatCurrency(proj?.income || 0)}</span>
+                            <input type="number" placeholder="Adicionar" className="flex-1 bg-white border border-slate-300 rounded px-2 py-1 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                              defaultValue={proj?.income || ''}
+                              onChange={(e) => updateProjection(year, month, e.target.value, proj?.expense || 0)}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-600 font-medium">Realizado:</span>
-                          <span className="text-sm font-bold text-emerald-700">{formatCurrency(realized.income)}</span>
+                        <div>
+                          <label className="text-[11px] text-slate-600 font-medium block mb-1">Realizado</label>
+                          <span className="text-lg font-bold text-emerald-700 block">{formatCurrency(realized.income)}</span>
                         </div>
-                        {incomeDiff > 0 && (
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                            <span className="text-xs text-slate-600 font-medium">Diferença:</span>
-                            <span className={`text-sm font-bold ${realized.income > proj.income ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {proj && proj.income > 0 && incomeDiff > 0 && (
+                          <div className="pt-2 border-t border-slate-300">
+                            <label className="text-[11px] text-slate-600 font-medium block mb-1">Diferença</label>
+                            <span className={`text-sm font-bold ${realized.income > proj.income ? 'text-emerald-700' : 'text-rose-700'}`}>
                               {realized.income > proj.income ? '+' : '-'}{formatCurrency(incomeDiff)}
                             </span>
                           </div>
@@ -1117,26 +1093,34 @@ const App = () => {
                     </div>
 
                     {/* DESPESA */}
-                    <div className="bg-white rounded-lg border border-amber-100 p-4 space-y-3">
+                    <div className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">📉 Despesa</span>
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${expenseMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {expenseMatch ? '✅ BATEU!' : `❌ ${expenseDiff > 0 ? 'Diferença' : 'OK'}`}
-                        </span>
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Despesa</span>
+                        {proj && proj.expense > 0 && (
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${expenseMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {expenseMatch ? 'OK' : 'Diferença'}
+                          </span>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-600 font-medium">Projetada:</span>
-                          <span className="text-sm font-bold text-slate-700">{formatCurrency(proj.expense)}</span>
+                        <div>
+                          <label className="text-[11px] text-slate-600 font-medium block mb-1">Projetada</label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold text-slate-700">{formatCurrency(proj?.expense || 0)}</span>
+                            <input type="number" placeholder="Adicionar" className="flex-1 bg-white border border-slate-300 rounded px-2 py-1 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                              defaultValue={proj?.expense || ''}
+                              onChange={(e) => updateProjection(year, month, proj?.income || 0, e.target.value)}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-slate-600 font-medium">Realizada:</span>
-                          <span className="text-sm font-bold text-rose-700">{formatCurrency(realized.expense)}</span>
+                        <div>
+                          <label className="text-[11px] text-slate-600 font-medium block mb-1">Realizada</label>
+                          <span className="text-lg font-bold text-rose-700 block">{formatCurrency(realized.expense)}</span>
                         </div>
-                        {expenseDiff > 0 && (
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                            <span className="text-xs text-slate-600 font-medium">Diferença:</span>
-                            <span className={`text-sm font-bold ${realized.expense > proj.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {proj && proj.expense > 0 && expenseDiff > 0 && (
+                          <div className="pt-2 border-t border-slate-300">
+                            <label className="text-[11px] text-slate-600 font-medium block mb-1">Diferença</label>
+                            <span className={`text-sm font-bold ${realized.expense > proj.expense ? 'text-rose-700' : 'text-emerald-700'}`}>
                               {realized.expense > proj.expense ? '+' : '-'}{formatCurrency(expenseDiff)}
                             </span>
                           </div>
@@ -1146,28 +1130,28 @@ const App = () => {
                   </div>
 
                   {/* SALDO COMPARATIVO */}
-                  <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      <div>
-                        <span className="text-xs text-blue-600 font-bold uppercase block">Saldo Projetado</span>
-                        <span className="text-lg font-bold text-blue-700 mt-1">{formatCurrency(proj.income - proj.expense)}</span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-blue-600 font-bold uppercase block">Saldo Real</span>
-                        <span className={`text-lg font-bold mt-1 ${realized.income - realized.expense >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                          {formatCurrency(realized.income - realized.expense)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-blue-600 font-bold uppercase block">Variação</span>
-                        <span className={`text-lg font-bold mt-1 ${(realized.income - realized.expense) >= (proj.income - proj.expense) ? 'text-emerald-700' : 'text-rose-700'}`}>
-                          {formatCurrency(Math.abs((realized.income - realized.expense) - (proj.income - proj.expense)))}
-                        </span>
+                  {proj && (proj.income > 0 || proj.expense > 0) && (
+                    <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+                      <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                        <div>
+                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Saldo Projetado</span>
+                          <span className="text-lg font-bold text-blue-700 mt-1">{formatCurrency(proj.income - proj.expense)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Saldo Real</span>
+                          <span className={`text-lg font-bold mt-1 ${realized.income - realized.expense >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatCurrency(realized.income - realized.expense)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Variação</span>
+                          <span className={`text-lg font-bold mt-1 ${(realized.income - realized.expense) >= (proj.income - proj.expense) ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {formatCurrency(Math.abs((realized.income - realized.expense) - (proj.income - proj.expense)))}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <p className="text-xs text-amber-700 text-center italic">💡 Ajuste suas projeções nas configurações para acompanhar melhor seu desempenho financeiro</p>
+                  )}
                 </div>
               );
             })()}
@@ -1652,7 +1636,7 @@ const App = () => {
             {/* HEADER */}
             <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-3xl">
               <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">⚙️ Configurações</h2>
+                <h2 className="text-2xl font-bold text-white">Configurações</h2>
                 <p className="text-xs text-blue-100">Personalize sua carteira digital</p>
               </div>
               <button onClick={() => setShowSettings(false)} className="text-white hover:bg-blue-800 p-2 rounded-lg transition-colors"><X size={24}/></button>
@@ -1664,18 +1648,17 @@ const App = () => {
               {/* SEÇÃO 1: APARÊNCIA */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
-                  <span className="text-2xl">🎨</span>
                   <h3 className="text-lg font-bold text-slate-800">Aparência</h3>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 flex items-center gap-1">📝 Título da App</label>
+                    <label className="text-sm font-bold text-slate-700">Título da App</label>
                     <input type="text" className="w-full bg-[#F8FAFC] border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" value={appTitle} onChange={(e) => setAppTitle(e.target.value)} placeholder="Ex: Meu Controle" />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 flex items-center gap-1">🖼️ Logo</label>
+                    <label className="text-sm font-bold text-slate-700">Logo</label>
                     <div className="flex items-center gap-3 bg-[#F8FAFC] p-3 rounded-lg border border-slate-300 shadow-sm">
                       <div className="w-12 h-12 rounded-md bg-white flex items-center justify-center overflow-hidden border border-slate-300 shadow-sm flex-shrink-0">
                         {appLogo ? <img src={appLogo} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-400" />}
@@ -1702,7 +1685,6 @@ const App = () => {
               {/* SEÇÃO 2: DADOS E BACKUP */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
-                  <span className="text-2xl">💾</span>
                   <h3 className="text-lg font-bold text-slate-800">Dados e Backup</h3>
                 </div>
 
@@ -1711,7 +1693,7 @@ const App = () => {
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-bold text-slate-800 flex items-center gap-2">
                       <input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4 cursor-pointer" />
-                      ✅ Ativar Backup Automático
+                      ✓ Ativar Backup Automático
                     </label>
                   </div>
                   {autoBackupEnabled && (
@@ -1734,19 +1716,19 @@ const App = () => {
                     onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    📊 Exportar CSV
+                    Exportar CSV
                   </button>
                   <button 
                     onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo)}
                     className="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
-                    📄 Exportar JSON
+                    Exportar JSON
                   </button>
                 </div>
 
                 <label className="block cursor-pointer">
                   <span className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
-                    📂 Importar (CSV / JSON)
+                    Importar (CSV / JSON)
                   </span>
                   <input 
                     type="file" 
@@ -1768,16 +1750,16 @@ const App = () => {
                               setAppTitle,
                               setAppLogo
                             });
-                            if (result.success) alert('✅ JSON importado com sucesso!');
-                            else alert(`❌ Erro ao importar JSON: ${result.message}`);
+                            if (result.success) alert('JSON importado com sucesso!');
+                            else alert(`Erro ao importar JSON: ${result.message}`);
                           } else {
                             const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(text);
                             setMonthlyData({ ...monthlyData, ...newMonthlyData });
                             setRecurrentItems([...recurrentItems, ...newRecurrentItems]);
-                            alert(`✅ Importados ${importedCount} registros com sucesso!`);
+                            alert(`Importados ${importedCount} registros com sucesso!`);
                           }
                         } catch (err) {
-                          alert(`❌ Erro ao importar: ${err.message}`);
+                          alert(`Erro ao importar: ${err.message}`);
                         }
                       };
                       reader.readAsText(file);
@@ -1789,32 +1771,31 @@ const App = () => {
                   onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  🔄 Recuperar Dados Antigos
+                  Recuperar Dados Antigos
                 </button>
               </div>
 
               {/* SEÇÃO 3: PROJEÇÃO vs REALIZADO */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
-                  <span className="text-2xl">📈</span>
                   <h3 className="text-lg font-bold text-slate-800">Projeção vs Realizado</h3>
                 </div>
 
                 <div className="bg-gradient-to-r from-amber-50 to-amber-50 p-4 rounded-lg border border-amber-200 space-y-4">
                   <p className="text-sm text-slate-600 leading-relaxed">
-                    📊 Compare suas projeções de receita e despesa com os valores realmente ocorridos. Ajuste suas estratégias financeiras com base no desempenho atual.
+                    Compare suas projeções de receita e despesa com os valores realmente ocorridos. Ajuste suas estratégias financeiras com base no desempenho atual.
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <label className="block text-sm font-bold text-slate-700">📅 Mês</label>
+                      <label className="block text-sm font-bold text-slate-700">Mês</label>
                       <select className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
                         {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                       </select>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-sm font-bold text-slate-700">📍 Ano</label>
+                      <label className="block text-sm font-bold text-slate-700">Ano</label>
                       <input type="number" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} />
                     </div>
 
@@ -1829,7 +1810,7 @@ const App = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-2">
-                      <label className="block text-sm font-bold text-slate-700">📉 Despesa Projetada</label>
+                      <label className="block text-sm font-bold text-slate-700">Despesa Projetada</label>
                       <input type="number" placeholder="Ex: 2000" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
                         defaultValue={projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.expense || ''}
                         onChange={(e) => updateProjection(selectedYear, selectedMonth, projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.income || 0, e.target.value)}
