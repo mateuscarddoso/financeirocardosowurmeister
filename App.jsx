@@ -959,19 +959,19 @@ const App = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
                 <span className="text-xs font-bold capitalize text-emerald-700 tracking-wider">Entrada</span>
-                <p className="text-2xl font-bold text-emerald-700 mt-2">{formatCurrency(stats.realIn)}</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-2">{formatCurrency(stats.totalIn)}</p>
               </div>
               <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm">
                 <span className="text-xs font-bold capitalize text-rose-700 tracking-wider">Despesa</span>
-                <p className="text-2xl font-bold text-rose-700 mt-2">{formatCurrency(stats.realOut)}</p>
+                <p className="text-2xl font-bold text-rose-700 mt-2">{formatCurrency(stats.totalOut)}</p>
               </div>
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-blue-700 tracking-wider">Saldo</span>
-                <p className={`text-2xl font-bold mt-2 ${stats.realIn - stats.realOut >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>{formatCurrency(stats.realIn - stats.realOut)}</p>
+                <span className="text-xs font-bold capitalize text-blue-700 tracking-wider">Previsão</span>
+                <p className={`text-2xl font-bold mt-2 ${stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{formatCurrency(stats.totalIn - stats.totalOut)}</p>
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-slate-700 tracking-wider">Faltam pagar</span>
-                <p className="text-2xl font-bold text-slate-700 mt-2">{formatCurrency(stats.totalOut)}</p>
+                <span className="text-xs font-bold capitalize text-slate-700 tracking-wider">Pago</span>
+                <p className="text-2xl font-bold text-slate-700 mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
               </div>
             </div>
 
@@ -1213,7 +1213,7 @@ const App = () => {
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold capitalize tracking-tighter">Parcelado</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Parcelado</span>}
                               </div>
                               <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
@@ -1248,7 +1248,7 @@ const App = () => {
                               <div className="flex items-center gap-2">
                                  <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
                                  {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100 font-bold capitalize tracking-tighter">Parcelado</span>}
+                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Parcelado</span>}
                               </div>
                               <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
                             </div>
@@ -1287,17 +1287,17 @@ const App = () => {
               <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-t border-blue-100 flex items-center justify-between gap-6 text-sm font-bold">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">Entradas:</span>
-                  <span className="text-emerald-700">{formatCurrency(stats.realIn)}</span>
+                  <span className="text-emerald-700">{formatCurrency(stats.totalIn)}</span>
                 </div>
                 <div className="w-px h-6 bg-slate-300"></div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">Saídas:</span>
-                  <span className="text-rose-700">{formatCurrency(stats.realOut)}</span>
+                  <span className="text-rose-700">{formatCurrency(stats.totalOut)}</span>
                 </div>
                 <div className="w-px h-6 bg-slate-300"></div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">Previsão:</span>
-                  <span className={stats.realIn - stats.realOut >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>{formatCurrency(stats.realIn - stats.realOut)}</span>
+                  <span className={stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>{formatCurrency(stats.totalIn - stats.totalOut)}</span>
                 </div>
               </div>
             </div>
@@ -1367,7 +1367,7 @@ const App = () => {
           </>
         ) : view === 'metas' ? (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-4 font-medium">
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-6 text-white shadow-xl border border-blue-500">
+            <div className="bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl p-6 text-white shadow-xl border border-blue-300">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-lg font-bold mb-1 capitalize tracking-wider">Minhas metas</h2>
@@ -1410,7 +1410,7 @@ const App = () => {
                           </div>
                           <div className="bg-cyan-50 rounded-lg p-3">
                             <div className="text-[10px] text-slate-500 capitalize font-bold">Gasto</div>
-                            <div className="text-lg font-bold text-cyan-600 mt-1">{formatCurrency(goal.spent || 0)}</div>
+                          <div className="text-lg font-bold text-blue-600 mt-1">{formatCurrency(goal.spent || 0)}</div>
                           </div>
                           <div className="bg-orange-50 rounded-lg p-3">
                             <div className="text-[10px] text-slate-500 capitalize font-bold">Falta</div>
@@ -1424,7 +1424,7 @@ const App = () => {
                             <span className="text-xs font-bold text-blue-600">{progress.toFixed(1)}% de {formatCurrency(goal.target)}</span>
                           </div>
                           <div className="w-full h-3.5 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
-                            <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all shadow-lg" style={{ width: `${Math.min(progress, 100)}%` }} />
+                            <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all shadow-lg" style={{ width: `${Math.min(progress, 100)}%` }} />
                           </div>
                           <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-bold capitalize">
                             <span>{formatCurrency(goal.spent || 0)}</span>
@@ -1451,13 +1451,13 @@ const App = () => {
           </div>
         ) : view === 'parcelado' ? (
           <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-4 font-medium">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-xl border border-purple-500">
+            <div className="bg-gradient-to-r from-blue-400 to-blue-500 rounded-2xl p-6 text-white shadow-xl border border-blue-300">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-lg font-bold mb-1 capitalize tracking-wider">Parcelamentos ativos</h2>
-                  <p className="text-purple-100 text-sm">Acompanhe suas despesas parceladas e o progresso de cada uma</p>
+                  <p className="text-blue-100 text-sm">Acompanhe suas despesas parceladas e o progresso de cada uma</p>
                 </div>
-                <button onClick={() => { setEditingItem(null); setShowInstallments(true); }} className="bg-white text-purple-600 font-bold px-4 py-2 rounded-lg hover:bg-purple-50 transition-all active:scale-95 flex items-center gap-2">
+                <button onClick={() => { setEditingItem(null); setShowInstallments(true); }} className="bg-white text-blue-600 font-bold px-4 py-2 rounded-lg hover:bg-blue-50 transition-all active:scale-95 flex items-center gap-2">
                   <Plus size={16} /> Novo Parcelamento
                 </button>
               </div>
@@ -1480,7 +1480,7 @@ const App = () => {
                         <div className="flex-1">
                           <h3 className="text-sm font-bold text-slate-800 capitalize tracking-wide">{inst.description}</h3>
                           <div className="flex gap-2 mt-2 flex-wrap">
-                            <span className="text-[9px] bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full font-bold capitalize tracking-tight">
+                            <span className="text-[9px] bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold capitalize tracking-tight">
                               {metrics.monthsPaid}/{metrics.totalMonths} Parcelas
                             </span>
                             <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold capitalize tracking-tight ${metrics.percentage === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -1496,9 +1496,9 @@ const App = () => {
 
                       {/* ESTATÍSTICAS */}
                       <div className="grid grid-cols-3 gap-2 mb-4">
-                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                           <div className="text-[9px] text-slate-500 capitalize font-bold">Status</div>
-                          <div className="text-lg font-bold text-purple-600 mt-1">{metrics.monthsPaid}/{metrics.totalMonths}</div>
+                          <div className="text-lg font-bold text-blue-600 mt-1">{metrics.monthsPaid}/{metrics.totalMonths}</div>
                         </div>
                         <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                           <div className="text-[9px] text-slate-500 capitalize font-bold">Valor mensal</div>
@@ -1514,11 +1514,11 @@ const App = () => {
                       <div className="space-y-3">
                         <div className="flex justify-between items-baseline">
                           <span className="text-xs font-bold text-slate-600 capitalize tracking-wide">Progresso de pagamento</span>
-                          <span className="text-xs font-bold text-purple-600">{metrics.percentage.toFixed(1)}%</span>
+                          <span className="text-xs font-bold text-blue-600">{metrics.percentage.toFixed(1)}%</span>
                         </div>
                         <div className="w-full h-4 bg-gradient-to-r from-slate-100 to-slate-200 rounded-full overflow-hidden border border-slate-200 shadow-inner">
                           <div 
-                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out shadow-lg" 
+                            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500 ease-out shadow-lg" 
                             style={{ width: `${Math.min(metrics.percentage, 100)}%` }} 
                           />
                         </div>
@@ -1591,7 +1591,7 @@ const App = () => {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {monthInstallments.map(inst => (
-                            <span key={inst.id} className="text-[10px] bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full font-medium border border-purple-100">
+                            <span key={inst.id} className="text-[10px] bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium border border-blue-100">
                               {inst.description}
                             </span>
                           ))}
@@ -1652,7 +1652,7 @@ const App = () => {
         <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-white/10 font-medium animate-in zoom-in-95 my-8">
             {/* HEADER */}
-            <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-3xl">
+            <div className="flex justify-between items-center bg-gradient-to-r from-blue-400 to-blue-500 p-6 rounded-t-3xl">
               <div className="space-y-1">
                 <h2 className="text-2xl font-bold text-white">Configurações</h2>
                 <p className="text-xs text-blue-100">Personalize sua carteira digital</p>
@@ -1745,7 +1745,7 @@ const App = () => {
                 </div>
 
                 <label className="block cursor-pointer">
-                  <span className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
+                  <span className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
                     Importar (CSV / JSON)
                   </span>
                   <input 
@@ -1787,7 +1787,7 @@ const App = () => {
 
                 <button 
                   onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   Recuperar Dados
                 </button>
@@ -2141,7 +2141,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
           <input 
             type="text" 
             placeholder="Ex: Geladeira, Sofá, TV 55 polegadas" 
-            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+            className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" 
             value={formData.description} 
             onChange={e => setFormData({...formData, description: e.target.value})} 
             required 
@@ -2157,7 +2157,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
               onClick={() => setFormData({...formData, paymentType: 'parcelado'})}
               className={`py-3 px-4 rounded-lg font-bold text-xs capitalize tracking-wider transition-all border-2 ${
                 formData.paymentType === 'parcelado' 
-                  ? 'bg-purple-100 border-purple-500 text-purple-700' 
+                  ? 'bg-blue-100 border-blue-500 text-blue-700' 
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
@@ -2168,7 +2168,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
               onClick={() => setFormData({...formData, paymentType: 'parcelado-outros'})}
               className={`py-3 px-4 rounded-lg font-bold text-xs capitalize tracking-wider transition-all border-2 ${
                 formData.paymentType === 'parcelado-outros' 
-                  ? 'bg-indigo-100 border-indigo-500 text-indigo-700' 
+                  ? 'bg-blue-100 border-blue-500 text-blue-700' 
                   : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
               }`}
             >
@@ -2185,7 +2185,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                 <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Data de início</label>
                 <input 
                   type="date" 
-                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" 
                   value={formData.startDate} 
                   onChange={e => handleDateChange('start', e.target.value)} 
                   required 
@@ -2195,7 +2195,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                 <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Data de término</label>
                 <input 
                   type="date" 
-                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" 
                   value={formData.endDate} 
                   onChange={e => handleDateChange('end', e.target.value)} 
                   required 
@@ -2213,7 +2213,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                     type="number" 
                     step="0.01" 
                     placeholder="0.00" 
-                    className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 pl-9 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                    className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 pl-9 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" 
                     value={formData.monthlyAmount} 
                     onChange={e => setFormData({...formData, monthlyAmount: e.target.value})} 
                     required 
@@ -2230,7 +2230,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                   type="number" 
                   min="0"
                   placeholder="0" 
-                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-purple-500 outline-none shadow-inner" 
+                  className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" 
                   value={formData.installmentsPaid || 0} 
                   onChange={e => setFormData({...formData, installmentsPaid: parseInt(e.target.value) || 0})} 
                 />
@@ -2249,12 +2249,12 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                       newCustom.push('');
                       setFormData({...formData, customInstallments: newCustom});
                     }}
-                    className="text-indigo-600 text-xs font-bold capitalize hover:text-indigo-700"
+                    className="text-blue-600 text-xs font-bold capitalize hover:text-blue-700"
                   >
                     + Adicionar
                   </button>
                 </div>
-                <div className="space-y-2 bg-indigo-50 p-4 rounded-lg border border-indigo-100 max-h-56 overflow-y-auto">
+                <div className="space-y-2 bg-blue-50 p-4 rounded-lg border border-blue-100 max-h-56 overflow-y-auto">
                   {formData.customInstallments && formData.customInstallments.length > 0 ? (
                     formData.customInstallments.map((value, idx) => (
                       <div key={idx} className="flex items-center gap-2">
@@ -2264,7 +2264,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                             type="number"
                             step="0.01"
                             placeholder="0.00"
-                            className="w-full bg-white border border-slate-200 rounded-md p-2 pl-16 text-sm font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
+                            className="w-full bg-white border border-slate-200 rounded-md p-2 pl-16 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none"
                             value={value}
                             onChange={(e) => {
                               const newCustom = [...formData.customInstallments];
@@ -2302,7 +2302,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
                       key={months}
                       type="button"
                       onClick={() => handleInstallmentChange(months)}
-                      className="py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs capitalize hover:bg-purple-100 transition-all active:scale-95"
+                      className="py-2 px-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 font-bold text-xs capitalize hover:bg-blue-100 transition-all active:scale-95"
                     >
                       {months}x
                     </button>
@@ -2313,20 +2313,20 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
 
             {/* PREVIEW DOS DADOS */}
             {previewData && (
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 space-y-3">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
                 <h4 className="text-xs font-bold text-slate-700 capitalize tracking-wider">📊 Resumo do parcelamento</h4>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <div className="text-[10px] text-slate-500 capitalize font-bold">Total de parcelas</div>
-                    <div className="text-lg font-bold text-purple-600 mt-1">{previewData.totalMonths}x</div>
+                    <div className="text-lg font-bold text-blue-600 mt-1">{previewData.totalMonths}x</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <div className="text-[10px] text-slate-500 capitalize font-bold">Valor mensal</div>
-                    <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(previewData.monthlyAmount) || 0)}</div>
+                    <div className="text-lg font-bold text-blue-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(previewData.monthlyAmount) || 0)}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-purple-100">
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <div className="text-[10px] text-slate-500 capitalize font-bold">Valor total</div>
-                    <div className="text-lg font-bold text-purple-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalValue)}</div>
+                    <div className="text-lg font-bold text-blue-600 mt-1">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(previewData.totalValue)}</div>
                   </div>
                 </div>
                 <div className="bg-white rounded-lg p-3 border border-purple-100 text-[11px] text-slate-600 font-medium">
@@ -2339,7 +2339,7 @@ const AdvancedInstallmentModal = ({ item, onSave, onClose }) => {
 
         <button 
           type="submit" 
-          className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl hover:bg-purple-700 active:scale-95 transition-all mt-2"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl hover:bg-blue-700 active:scale-95 transition-all mt-2"
         >
           {item ? 'Atualizar Parcelamento' : 'Criar Parcelamento'}
         </button>
