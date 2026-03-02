@@ -58,8 +58,34 @@ const formatDateCorrectly = (dateString, options = {}) => {
   });
 };
 
-const getCategoryTagClass = (category = '', type = 'SAIDA') => {
+const getCategoryTagClass = (category = '', type = 'SAIDA', toneMode = 'variado') => {
   const normalized = String(category).toLowerCase();
+
+  if (toneMode === 'azul') {
+    return type === 'ENTRADA'
+      ? 'bg-blue-50 text-blue-700 border-blue-100'
+      : 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+
+  if (toneMode === 'pastel') {
+    const pastelByCategory = {
+      alimentação: 'bg-orange-50 text-orange-700 border-orange-100',
+      transporte: 'bg-sky-50 text-sky-700 border-sky-100',
+      saúde: 'bg-lime-50 text-lime-700 border-lime-100',
+      educação: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+      lazer: 'bg-purple-50 text-purple-700 border-purple-100',
+      contas: 'bg-blue-50 text-blue-700 border-blue-100',
+      cartão: 'bg-slate-100 text-slate-700 border-slate-200',
+      fixo: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+      extra: 'bg-teal-50 text-teal-700 border-teal-100',
+      outros: 'bg-zinc-50 text-zinc-600 border-zinc-200',
+      parcelado: 'bg-blue-50 text-blue-700 border-blue-100'
+    };
+    if (pastelByCategory[normalized]) return pastelByCategory[normalized];
+    return type === 'ENTRADA'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+      : 'bg-rose-50 text-rose-700 border-rose-100';
+  }
 
   const toneByCategory = {
     alimentação: 'bg-amber-50 text-amber-700 border-amber-100',
@@ -114,11 +140,12 @@ const exportToCSV = (monthlyData, recurrentItems, installments, goals) => {
 };
 
 // Exportar todo o estado em JSON estruturado
-const exportToJSON = (monthlyData, recurrentItems, installments, goals, appTitle, appLogo) => {
+const exportToJSON = (monthlyData, recurrentItems, installments, goals, appTitle, appLogo, categoryToneMode) => {
   const payload = {
     exportedAt: new Date().toISOString(),
     appTitle,
     appLogo,
+    categoryToneMode,
     monthlyData,
     recurrentItems,
     installments,
@@ -258,12 +285,16 @@ const restoreDataFromJSON = (jsonString, setters) => {
     if (data.appLogo) {
       setters.setAppLogo(data.appLogo);
     }
+    if (data.categoryToneMode) {
+      setters.setCategoryToneMode(data.categoryToneMode);
+    }
     
     // Salvar no localStorage
     localStorage.setItem('fin_rec_nubank', JSON.stringify(data.recurrentItems || []));
     localStorage.setItem('fin_mon_nubank', JSON.stringify(data.monthlyData || {}));
     localStorage.setItem('fin_goals_nubank', JSON.stringify(data.goals || []));
     localStorage.setItem('fin_installments_nubank', JSON.stringify(data.installments || []));
+    if (data.categoryToneMode) localStorage.setItem('fin_category_tone_mode', data.categoryToneMode);
     
     return { success: true, message: `${Object.keys(data).length} seções restauradas com sucesso!` };
   } catch (err) {
@@ -390,6 +421,7 @@ const App = () => {
   // Personalização
   const [appTitle, setAppTitle] = useState(() => localStorage.getItem('fin_title_nubank') || 'Meu Controle');
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('fin_logo_nubank') || null);
+  const [categoryToneMode, setCategoryToneMode] = useState(() => localStorage.getItem('fin_category_tone_mode') || 'variado');
 
   // BACKUP AUTOMÁTICO
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
@@ -493,6 +525,7 @@ const App = () => {
         localStorage.setItem('fin_auto_backup_enabled', autoBackupEnabled ? 'true' : 'false');
         localStorage.setItem('fin_auto_backup_download', autoBackupDownload ? 'true' : 'false');
         localStorage.setItem('fin_auto_backup_interval', String(autoBackupIntervalMins));
+        localStorage.setItem('fin_category_tone_mode', categoryToneMode);
         localStorage.setItem('fin_last_save', new Date().toISOString());
 
         // Salvar em IndexedDB também (persistência superior)
@@ -508,7 +541,7 @@ const App = () => {
     };
 
     saveData();
-  }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments, autoBackupEnabled, autoBackupDownload, autoBackupIntervalMins, isLoadingData]);
+  }, [recurrentItems, monthlyData, appTitle, appLogo, goals, installments, autoBackupEnabled, autoBackupDownload, autoBackupIntervalMins, categoryToneMode, isLoadingData]);
 
   // 🔒 Salva dados quando o usuário sai da página (beforeunload)
   useEffect(() => {
@@ -667,7 +700,8 @@ const App = () => {
         goals,
         installments,
         appTitle,
-        appLogo
+        appLogo,
+        categoryToneMode
       };
 
       const raw = localStorage.getItem('fin_auto_backups');
@@ -705,7 +739,7 @@ const App = () => {
     // criar um backup imediato ao ativar
     createBackupSnapshot();
     return () => clearInterval(id);
-  }, [autoBackupEnabled, autoBackupIntervalMins, autoBackupDownload, monthlyData, recurrentItems, goals, installments, appTitle, appLogo]);
+  }, [autoBackupEnabled, autoBackupIntervalMins, autoBackupDownload, monthlyData, recurrentItems, goals, installments, appTitle, appLogo, categoryToneMode]);
 
   // 🔄 Recuperação automática de dados se estiverem vazios
   useEffect(() => {
@@ -729,6 +763,7 @@ const App = () => {
             if (latestBackup.installments) setInstallments(latestBackup.installments);
             if (latestBackup.appTitle) setAppTitle(latestBackup.appTitle);
             if (latestBackup.appLogo) setAppLogo(latestBackup.appLogo);
+            if (latestBackup.categoryToneMode) setCategoryToneMode(latestBackup.categoryToneMode);
           }
         }
       } catch (err) {
@@ -1239,7 +1274,7 @@ const App = () => {
                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Parcelado</span>}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type)}`}>{t.category}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type, categoryToneMode)}`}>{t.category}</span>
                                 <span className="text-xs text-slate-500 font-medium tracking-wide">{t.date ? formatDateCorrectly(t.date, { month: '2-digit' }) : '--/--'}</span>
                               </div>
                             </div>
@@ -1277,7 +1312,7 @@ const App = () => {
                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Parcelado</span>}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type)}`}>{t.category}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type, categoryToneMode)}`}>{t.category}</span>
                                 <span className="text-xs text-slate-500 font-medium tracking-wide">{t.date ? formatDateCorrectly(t.date, { month: '2-digit' }) : '--/--'}</span>
                               </div>
                             </div>
@@ -1659,7 +1694,7 @@ const App = () => {
                            <h4 className="text-sm font-bold text-slate-700 capitalize tracking-wide">{r.desc}</h4>
                            <div className="flex items-center gap-2 mt-1">
                              <span className="text-xs text-slate-500 font-medium tracking-wide">Dia {r.dueDay || '01'}</span>
-                             <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(r.category, r.type)}`}>{r.category}</span>
+                             <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(r.category, r.type, categoryToneMode)}`}>{r.category}</span>
                            </div>
                          </div>
                       </div>
@@ -1730,6 +1765,19 @@ const App = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Tonalidade das categorias</label>
+                  <select
+                    className="w-full bg-[#F8FAFC] border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+                    value={categoryToneMode}
+                    onChange={(e) => setCategoryToneMode(e.target.value)}
+                  >
+                    <option value="variado">Variado sutil</option>
+                    <option value="pastel">Pastel suave</option>
+                    <option value="azul">Azul minimalista</option>
+                  </select>
+                </div>
               </div>
 
               {/* SEÇÃO 2: DADOS E BACKUP */}
@@ -1769,7 +1817,7 @@ const App = () => {
                     Exportar CSV
                   </button>
                   <button 
-                    onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo)}
+                    onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo, categoryToneMode)}
                     className="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                   >
                     Exportar JSON
@@ -1798,7 +1846,8 @@ const App = () => {
                               setGoals,
                               setInstallments,
                               setAppTitle,
-                              setAppLogo
+                              setAppLogo,
+                              setCategoryToneMode
                             });
                             if (result.success) alert('JSON importado com sucesso!');
                             else alert(`Erro ao importar JSON: ${result.message}`);
@@ -2018,7 +2067,8 @@ const App = () => {
                     setGoals,
                     setInstallments,
                     setAppTitle,
-                    setAppLogo
+                    setAppLogo,
+                    setCategoryToneMode
                   });
                   setRecoveryMessage(result.message);
                   if (result.success) {
