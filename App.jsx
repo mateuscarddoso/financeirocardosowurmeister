@@ -58,6 +58,29 @@ const formatDateCorrectly = (dateString, options = {}) => {
   });
 };
 
+const getCategoryTagClass = (category = '', type = 'SAIDA') => {
+  const normalized = String(category).toLowerCase();
+
+  const toneByCategory = {
+    alimentação: 'bg-amber-50 text-amber-700 border-amber-100',
+    transporte: 'bg-sky-50 text-sky-700 border-sky-100',
+    saúde: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    educação: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    lazer: 'bg-violet-50 text-violet-700 border-violet-100',
+    contas: 'bg-blue-50 text-blue-700 border-blue-100',
+    cartão: 'bg-slate-100 text-slate-700 border-slate-200',
+    fixo: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+    extra: 'bg-teal-50 text-teal-700 border-teal-100',
+    outros: 'bg-slate-50 text-slate-600 border-slate-200',
+    parcelado: 'bg-blue-50 text-blue-700 border-blue-100'
+  };
+
+  if (toneByCategory[normalized]) return toneByCategory[normalized];
+  return type === 'ENTRADA'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    : 'bg-rose-50 text-rose-700 border-rose-100';
+};
+
 // FUNÇÃO PARA EXPORTAR DADOS PARA CSV
 const exportToCSV = (monthlyData, recurrentItems, installments, goals) => {
   let csv = 'TIPO,DATA,DESCRIÇÃO,CATEGORIA,VALOR,STATUS\n';
@@ -918,7 +941,7 @@ const App = () => {
     <div className="min-h-screen bg-[#F3F5F7] text-[#1A1D21] font-sans antialiased pb-10 tracking-tight">
       {/* HEADER COMPACTO */}
       <header className="bg-[#111827] text-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-2">
+        <div className="max-w-6xl mx-auto px-5 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="flex items-center gap-3">
             {appLogo ? (
               <img src={appLogo} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
@@ -926,17 +949,17 @@ const App = () => {
               <div className="bg-blue-600 p-1.5 rounded-lg"><Wallet size={18} className="text-white" /></div>
             )}
             <div>
-              <h1 className="text-base font-bold leading-none">{appTitle}</h1>
+              <h1 className="text-base font-semibold leading-none">{appTitle}</h1>
               <span className="text-[9px] text-slate-400 capitalize tracking-wider block font-medium mt-0.5">2026</span>
             </div>
           </div>
 
 
           <div className="flex items-center bg-[#1F2937] p-1 rounded-lg border border-slate-700">
-            <button onClick={() => setView('mensal')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'mensal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fluxo de caixa</button>
-            <button onClick={() => setView('fixos')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'fixos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fixos</button>
-            <button onClick={() => setView('metas')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'metas' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Metas</button>
-            <button onClick={() => setView('parcelado')} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all capitalize tracking-wide ${view === 'parcelado' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Parcelado</button>
+            <button onClick={() => setView('mensal')} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all capitalize tracking-wide ${view === 'mensal' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fluxo de caixa</button>
+            <button onClick={() => setView('fixos')} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all capitalize tracking-wide ${view === 'fixos' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Fixos</button>
+            <button onClick={() => setView('metas')} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all capitalize tracking-wide ${view === 'metas' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Metas</button>
+            <button onClick={() => setView('parcelado')} className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all capitalize tracking-wide ${view === 'parcelado' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Parcelado</button>
           </div>
 
 
@@ -951,27 +974,27 @@ const App = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-4 space-y-4 font-medium">
+      <main className="max-w-6xl mx-auto p-6 space-y-6 font-medium">
         {view === 'mensal' ? (
           <>
             {/* SUMÁRIO */}
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-emerald-700 tracking-wider">Entrada</span>
-                <p className="text-2xl font-bold text-emerald-700 mt-2">{formatCurrency(stats.totalIn)}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-200 shadow-sm">
+                <span className="text-xs font-semibold capitalize text-emerald-700 tracking-wider">Entrada</span>
+                <p className="text-2xl font-semibold text-emerald-700 mt-2">{formatCurrency(stats.totalIn)}</p>
               </div>
-              <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-rose-700 tracking-wider">Despesa</span>
-                <p className="text-2xl font-bold text-rose-700 mt-2">{formatCurrency(stats.totalOut)}</p>
+              <div className="bg-rose-50 p-5 rounded-xl border border-rose-200 shadow-sm">
+                <span className="text-xs font-semibold capitalize text-rose-700 tracking-wider">Despesa</span>
+                <p className="text-2xl font-semibold text-rose-700 mt-2">{formatCurrency(stats.totalOut)}</p>
               </div>
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-blue-700 tracking-wider">Previsão</span>
-                <p className={`text-2xl font-bold mt-2 ${stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{formatCurrency(stats.totalIn - stats.totalOut)}</p>
+              <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 shadow-sm">
+                <span className="text-xs font-semibold capitalize text-blue-700 tracking-wider">Previsão</span>
+                <p className={`text-2xl font-semibold mt-2 ${stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{formatCurrency(stats.totalIn - stats.totalOut)}</p>
               </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span className="text-xs font-bold capitalize text-slate-700 tracking-wider">Pago</span>
-                <p className="text-2xl font-bold text-slate-700 mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
+              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-xs font-semibold capitalize text-slate-700 tracking-wider">Pago</span>
+                <p className="text-2xl font-semibold text-slate-700 mt-2">{formatCurrency(stats.realIn - stats.realOut)}</p>
               </div>
             </div>
 
@@ -982,7 +1005,7 @@ const App = () => {
                 <button onClick={() => setShowPendencies(!showPendencies)} className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors text-slate-600">
                   <div className="flex items-center gap-2">
                     <AlertCircle size={16} className="text-slate-400" />
-                    <h3 className="text-sm font-bold capitalize tracking-wide">Pendências ({lastMonthPendencies.length})</h3>
+                    <h3 className="text-sm font-semibold capitalize tracking-wide">Pendências ({lastMonthPendencies.length})</h3>
                   </div>
                   {showPendencies ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -992,9 +1015,9 @@ const App = () => {
                       <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-white border border-slate-100 shadow-sm">
                          <div className="flex items-center gap-3">
                            <button onClick={() => toggleStatus(p.id, p.isRecurrent || false, p.prevY, p.prevM)} className="text-slate-300 hover:text-blue-500 transition-all active:scale-90"><Clock size={16} /></button>
-                           <span className="text-xs font-bold capitalize text-slate-700 tracking-wide">{p.desc}</span>
+                           <span className="text-xs font-semibold capitalize text-slate-700 tracking-wide">{p.desc}</span>
                          </div>
-                         <span className="text-xs font-bold text-rose-500">{formatCurrency(p.amount)}</span>
+                         <span className="text-xs font-semibold text-rose-500">{formatCurrency(p.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -1004,21 +1027,21 @@ const App = () => {
 
 
             {/* SELETOR DE MESES */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-400 capitalize tracking-wider">Mês / ano</span>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-semibold text-slate-400 capitalize tracking-wider">Mês / ano</span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setYear(year - 1)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">◄</button>
-                  <span className="text-xs font-bold text-slate-600 w-8 text-center">{year}</span>
-                  <button onClick={() => setYear(year + 1)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">►</button>
+                  <button onClick={() => setYear(year - 1)} className="text-slate-400 hover:text-slate-700 text-xs font-semibold">◄</button>
+                  <span className="text-xs font-semibold text-slate-600 w-8 text-center">{year}</span>
+                  <button onClick={() => setYear(year + 1)} className="text-slate-400 hover:text-slate-700 text-xs font-semibold">►</button>
                 </div>
               </div>
               <div className="grid grid-cols-6 gap-2">
-                {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((m, i) => (
+                {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
                   <button
                     key={i}
                     onClick={() => setMonth(i + 1)}
-                    className={`py-2 rounded font-bold text-xs capitalize tracking-wider transition-all ${
+                    className={`py-2 rounded font-semibold text-xs tracking-wider transition-all ${
                       month === i + 1
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1059,10 +1082,10 @@ const App = () => {
                     {/* RECEITA */}
                     <div className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Receita</span>
+                        <span className="text-xs font-bold text-slate-700 tracking-wider">Receita</span>
                         {proj && proj.income > 0 && (
                           <span className={`text-xs font-bold px-2 py-1 rounded ${incomeMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {incomeMatch ? 'OK' : 'Diferença'}
+                            {incomeMatch ? 'Ok' : 'Diferença'}
                           </span>
                         )}
                       </div>
@@ -1095,10 +1118,10 @@ const App = () => {
                     {/* DESPESA */}
                     <div className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Despesa</span>
+                        <span className="text-xs font-bold text-slate-700 tracking-wider">Despesa</span>
                         {proj && proj.expense > 0 && (
                           <span className={`text-xs font-bold px-2 py-1 rounded ${expenseMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {expenseMatch ? 'OK' : 'Diferença'}
+                            {expenseMatch ? 'Ok' : 'Diferença'}
                           </span>
                         )}
                       </div>
@@ -1134,17 +1157,17 @@ const App = () => {
                     <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
                       <div className="grid grid-cols-3 gap-3 text-center text-sm">
                         <div>
-                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Saldo Projetado</span>
+                          <span className="text-[11px] text-blue-700 font-bold block">Saldo Projetado</span>
                           <span className="text-lg font-bold text-blue-700 mt-1">{formatCurrency(proj.income - proj.expense)}</span>
                         </div>
                         <div>
-                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Saldo Real</span>
+                          <span className="text-[11px] text-blue-700 font-bold block">Saldo Real</span>
                           <span className={`text-lg font-bold mt-1 ${realized.income - realized.expense >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {formatCurrency(realized.income - realized.expense)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-[11px] text-blue-700 font-bold uppercase block">Variação</span>
+                          <span className="text-[11px] text-blue-700 font-bold block">Variação</span>
                           <span className={`text-lg font-bold mt-1 ${(realized.income - realized.expense) >= (proj.income - proj.expense) ? 'text-emerald-700' : 'text-rose-700'}`}>
                             {formatCurrency(Math.abs((realized.income - realized.expense) - (proj.income - proj.expense)))}
                           </span>
@@ -1158,17 +1181,17 @@ const App = () => {
 
             {/* LISTAGEM PRINCIPAL */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col font-medium">
-              <div className="px-5 py-4 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-3">
+              <div className="px-6 py-5 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xs font-bold text-slate-400 capitalize tracking-wider leading-none">Fluxo de caixa</h2>
+                  <h2 className="text-xs font-semibold text-slate-400 capitalize tracking-wider leading-none">Fluxo de caixa</h2>
                   <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-all active:scale-95 shadow-sm"><Plus size={16} /></button>
                 </div>
                 
                 {selectedIds.length > 0 && (
-                  <div className="flex items-center gap-4 px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 animate-in slide-in-from-right duration-300">
-                    <span className="text-xs font-bold text-blue-600 capitalize tracking-wide">{selectedIds.length} selecionados</span>
-                    <button onClick={() => bulkTogglePaid(true)} className="text-emerald-600 text-xs font-bold capitalize hover:underline">Pago</button>
-                    <button onClick={() => bulkTogglePaid(false)} className="text-blue-600 text-xs font-bold capitalize hover:underline">Pendente</button>
+                  <div className="flex items-center gap-4 px-4 py-2.5 bg-blue-50 rounded-lg border border-blue-100 animate-in slide-in-from-right duration-300">
+                    <span className="text-xs font-semibold text-blue-600 capitalize tracking-wide">{selectedIds.length} selecionados</span>
+                    <button onClick={() => bulkTogglePaid(true)} className="text-emerald-600 text-xs font-semibold capitalize hover:underline">Pago</button>
+                    <button onClick={() => bulkTogglePaid(false)} className="text-blue-600 text-xs font-semibold capitalize hover:underline">Pendente</button>
                   </div>
                 )}
 
@@ -1183,7 +1206,7 @@ const App = () => {
               <div className="overflow-x-auto font-medium">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="text-xs font-bold text-slate-400 capitalize tracking-wider bg-slate-50/50">
+                    <tr className="text-xs font-semibold text-slate-400 capitalize tracking-wider bg-slate-50/50">
                       <th className="px-5 py-3 border-b text-center w-8">
                          <button onClick={() => { if(selectedIds.length === currentEntries.length && currentEntries.length > 0) setSelectedIds([]); else setSelectedIds(currentEntries.map(e=>e.id)); }} className="text-slate-300 transition-colors hover:text-blue-500"><CheckSquare size={16}/></button>
                       </th>
@@ -1204,21 +1227,24 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
-                              {t.isPaid ? 'OK' : 'Pendente'}
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                              {t.isPaid ? 'Ok' : 'Pendente'}
                             </button>
                           </td>
                           <td className="px-2 py-3.5">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                 <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
-                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Parcelado</span>}
+                                <span className={`text-sm font-semibold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
+                                {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Fixo</span>}
+                                {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Parcelado</span>}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type)}`}>{t.category}</span>
+                                <span className="text-xs text-slate-500 font-medium tracking-wide">{t.date ? formatDateCorrectly(t.date, { month: '2-digit' }) : '--/--'}</span>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-2 py-3.5 text-right font-bold">
+                          <td className="px-2 py-3.5 text-right font-semibold">
                             <span className={t.type === 'ENTRADA' ? 'text-emerald-600 text-sm' : 'text-rose-500 text-sm'}>
                               {t.type === 'ENTRADA' ? '+' : '-'} {formatCurrency(t.amount)}
                             </span>
@@ -1239,21 +1265,24 @@ const App = () => {
                              <button onClick={() => { if(selectedIds.includes(t.id)) setSelectedIds(selectedIds.filter(i=>i!==t.id)); else setSelectedIds([...selectedIds, t.id]); }} className={`${selectedIds.includes(t.id) ? 'text-blue-600' : 'text-slate-200 group-hover:text-slate-300'}`}><CheckSquare size={18}/></button>
                           </td>
                           <td className="px-2 py-3.5">
-                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-white border-slate-200 text-slate-500'}`}>
-                              {t.isPaid ? 'OK' : 'Pendente'}
+                            <button onClick={() => toggleStatus(t.id, t.isRecurrent, year, month, t.isInstallment, t.monthKey)} className={`px-3 py-1 rounded-md text-xs font-semibold capitalize transition-all border ${t.isPaid ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                              {t.isPaid ? 'Ok' : 'Pendente'}
                             </button>
                           </td>
                           <td className="px-2 py-3.5">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                 <span className={`text-sm font-bold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
-                                 {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Fixo</span>}
-                                 {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-bold capitalize tracking-tighter">Parcelado</span>}
+                                <span className={`text-sm font-semibold leading-none ${t.isPaid ? 'line-through text-slate-400' : 'text-slate-700'}`}>{t.desc}</span>
+                                {t.isRecurrent && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Fixo</span>}
+                                {t.isInstallment && <span className="text-[8px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 font-semibold capitalize tracking-tighter">Parcelado</span>}
                               </div>
-                              <span className="text-xs text-slate-500 font-medium mt-1 capitalize tracking-wide">{t.isInstallment ? t.category : (t.date ? `${t.category} • ${formatDateCorrectly(t.date, {month: '2-digit'})}` : `${t.category} • --/--`)}</span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(t.category, t.type)}`}>{t.category}</span>
+                                <span className="text-xs text-slate-500 font-medium tracking-wide">{t.date ? formatDateCorrectly(t.date, { month: '2-digit' }) : '--/--'}</span>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-2 py-3.5 text-right font-bold">
+                          <td className="px-2 py-3.5 text-right font-semibold">
                             <span className={t.type === 'ENTRADA' ? 'text-emerald-600 text-sm' : 'text-rose-500 text-sm'}>
                               {t.type === 'ENTRADA' ? '+' : '-'} {formatCurrency(t.amount)}
                             </span>
@@ -1275,8 +1304,8 @@ const App = () => {
 
 
               {/* BARRA DE BALANÇO */}
-              <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4">
-                 <div className="text-xs font-bold text-slate-400 capitalize tracking-wider leading-none">Balanço</div>
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4">
+                  <div className="text-xs font-semibold text-slate-400 capitalize tracking-wider leading-none">Balanço</div>
                  <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden flex shadow-inner">
                     <div className="bg-emerald-500 transition-all duration-1000 ease-out" style={{ width: `${stats.totalIn + stats.totalOut === 0 ? 50 : (stats.totalIn / (stats.totalIn + stats.totalOut)) * 100}%` }} />
                     <div className="bg-rose-500 transition-all duration-1000 ease-out" style={{ width: `${stats.totalIn + stats.totalOut === 0 ? 50 : (stats.totalOut / (stats.totalIn + stats.totalOut)) * 100}%` }} />
@@ -1284,7 +1313,7 @@ const App = () => {
               </div>
 
               {/* RESUMO MINIMALISTA - CALCULADORA */}
-              <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-t border-blue-100 flex items-center justify-between gap-6 text-sm font-bold">
+              <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-t border-blue-100 flex items-center justify-between gap-6 text-sm font-semibold">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">Entradas:</span>
                   <span className="text-emerald-700">{formatCurrency(stats.totalIn)}</span>
@@ -1297,20 +1326,20 @@ const App = () => {
                 <div className="w-px h-6 bg-slate-300"></div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-600">Previsão:</span>
-                  <span className={stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>{formatCurrency(stats.totalIn - stats.totalOut)}</span>
+                  <span className={stats.totalIn - stats.totalOut >= 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{formatCurrency(stats.totalIn - stats.totalOut)}</span>
                 </div>
               </div>
             </div>
 
             {/* ANALYTICS: GASTOS E ENTRADAS POR CATEGORIA */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Gastos por Categoria */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-50 flex items-center gap-2 bg-slate-50/50">
                   <TrendingDown size={16} className="text-rose-500" />
                   <h3 className="text-xs font-bold text-slate-400 capitalize tracking-wider">Gastos por categoria</h3>
                 </div>
-                <div className="p-4 space-y-3">
+                <div className="p-5 space-y-4">
                   {expensesByCategory.length === 0 ? (
                     <p className="text-xs text-slate-400 italic">Sem gastos registrados</p>
                   ) : (
@@ -1320,8 +1349,8 @@ const App = () => {
                       return (
                         <div key={idx} className="space-y-1">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-700">{cat.category}</span>
-                            <span className="text-xs font-bold text-rose-500">{percentage.toFixed(1)}%</span>
+                            <span className="text-xs font-semibold text-slate-700">{cat.category}</span>
+                            <span className="text-xs font-semibold text-rose-500">{percentage.toFixed(1)}%</span>
                           </div>
                           <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                             <div className="h-full bg-rose-500 transition-all" style={{ width: `${percentage}%` }} />
@@ -1628,7 +1657,10 @@ const App = () => {
                          </div>
                          <div>
                            <h4 className="text-sm font-bold text-slate-700 capitalize tracking-wide">{r.desc}</h4>
-                           <p className="text-xs text-slate-500 font-medium capitalize mt-1 tracking-wide">Dia {r.dueDay || '01'} • {r.category}</p>
+                           <div className="flex items-center gap-2 mt-1">
+                             <span className="text-xs text-slate-500 font-medium tracking-wide">Dia {r.dueDay || '01'}</span>
+                             <span className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${getCategoryTagClass(r.category, r.type)}`}>{r.category}</span>
+                           </div>
                          </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -1853,11 +1885,11 @@ const App = () => {
                           msg += `Receita:\n`;
                           msg += `  Projetado: R$ ${proj?.income.toFixed(2) || 'Não definido'}\n`;
                           msg += `  Realizado: R$ ${realized.income.toFixed(2)}\n`;
-                          msg += `  ${incomeMatch ? 'OK!' : `Diferença: R$ ${Math.abs((proj?.income || 0) - realized.income).toFixed(2)}`}\n\n`;
+                          msg += `  ${incomeMatch ? 'Ok!' : `Diferença: R$ ${Math.abs((proj?.income || 0) - realized.income).toFixed(2)}`}\n\n`;
                           msg += `Despesa:\n`;
                           msg += `  Projetado: R$ ${proj?.expense.toFixed(2) || 'Não definido'}\n`;
                           msg += `  Realizado: R$ ${realized.expense.toFixed(2)}\n`;
-                          msg += `  ${expenseMatch ? 'OK!' : `Diferença: R$ ${Math.abs((proj?.expense || 0) - realized.expense).toFixed(2)}`}`;
+                          msg += `  ${expenseMatch ? 'Ok!' : `Diferença: R$ ${Math.abs((proj?.expense || 0) - realized.expense).toFixed(2)}`}`;
 
                           alert(msg);
                         }} className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all">
