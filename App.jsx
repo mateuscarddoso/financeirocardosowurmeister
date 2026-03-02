@@ -542,6 +542,16 @@ const App = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // 💾 Salvar título e logo no localStorage quando mudarem
+  useEffect(() => {
+    localStorage.setItem('fin_title_nubank', appTitle);
+  }, [appTitle]);
+
+  useEffect(() => {
+    if (appLogo) {
+      localStorage.setItem('fin_logo_nubank', appLogo);
+    }
+  }, [appLogo]);
 
   const periodKey = `${year}-${month}`;
 
@@ -1518,27 +1528,43 @@ const App = () => {
       </main>
 
 
-      {/* MODAL CONFIGURAÇÕES */}
+      {/* MODAL CONFIGURAÇÕES MELHORADO */}
       {showSettings && (
-        <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl border border-white/10 font-medium animate-in zoom-in-95">
-             <div className="flex justify-between items-center mb-6">
-               <h2 className="text-base font-bold text-slate-800 capitalize tracking-wider leading-none">Configurações</h2>
-               <button onClick={() => setShowSettings(false)} className="text-slate-300 hover:text-slate-500"><X size={24}/></button>
-             </div>
-             <div className="space-y-5">
-                <div className="space-y-2">
-                   <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Título</label>
-                   <input type="text" className="w-full bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-1 focus:ring-blue-500 outline-none shadow-inner" value={appTitle} onChange={(e) => setAppTitle(e.target.value)} />
+        <div className="fixed inset-0 bg-[#111827]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-white/10 font-medium animate-in zoom-in-95 my-8">
+            {/* HEADER */}
+            <div className="flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-3xl">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">⚙️ Configurações</h2>
+                <p className="text-xs text-blue-100">Personalize sua carteira digital</p>
+              </div>
+              <button onClick={() => setShowSettings(false)} className="text-white hover:bg-blue-800 p-2 rounded-lg transition-colors"><X size={24}/></button>
+            </div>
+
+            {/* CONTEÚDO */}
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              
+              {/* SEÇÃO 1: APARÊNCIA */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                  <span className="text-2xl">🎨</span>
+                  <h3 className="text-lg font-bold text-slate-800">Aparência</h3>
                 </div>
-                <div className="space-y-2">
-                   <label className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold">Logo</label>
-                   <div className="flex items-center gap-3 bg-[#F8FAFC] p-3 rounded-lg border border-slate-100 shadow-inner">
-                      <div className="w-10 h-10 rounded-md bg-white flex items-center justify-center overflow-hidden border border-slate-200 shadow-sm">
-                        {appLogo ? <img src={appLogo} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-slate-400" />}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-1">📝 Título da App</label>
+                    <input type="text" className="w-full bg-[#F8FAFC] border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" value={appTitle} onChange={(e) => setAppTitle(e.target.value)} placeholder="Ex: Meu Controle" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-1">🖼️ Logo</label>
+                    <div className="flex items-center gap-3 bg-[#F8FAFC] p-3 rounded-lg border border-slate-300 shadow-sm">
+                      <div className="w-12 h-12 rounded-md bg-white flex items-center justify-center overflow-hidden border border-slate-300 shadow-sm flex-shrink-0">
+                        {appLogo ? <img src={appLogo} className="w-full h-full object-cover" /> : <ImageIcon size={20} className="text-slate-400" />}
                       </div>
                       <label className="flex-1 cursor-pointer">
-                        <span className="bg-blue-600 text-white text-xs font-bold capitalize py-2 px-3 rounded-md flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all tracking-wide">
+                        <span className="bg-blue-600 text-white text-xs font-bold py-2 px-3 rounded-md flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all hover:bg-blue-700">
                            <Upload size={13} /> Upload
                         </span>
                         <input type="file" className="hidden" accept="image/*" onChange={(e) => {
@@ -1550,94 +1576,191 @@ const App = () => {
                           }
                         }} />
                       </label>
-                   </div>
-                   {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-500 font-bold capitalize mt-2 ml-1 hover:underline tracking-wide">Remover</button>}
-                </div>
-
-                {/* IMPORT/EXPORT */}
-                <div className="border-t border-slate-200 pt-4">
-                  <span className="text-xs capitalize text-slate-400 ml-1 tracking-wider font-bold block mb-3">Dados</span>
-                  <div className="flex gap-2">
-                    <div className="flex flex-col gap-2 mr-2">
-                      <label className="text-[11px] text-slate-500 font-medium">Backup automático</label>
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4" /> <span className="capitalize font-bold text-slate-600">Ativar</span></label>
-                        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoBackupDownload} onChange={(e) => setAutoBackupDownload(e.target.checked)} className="w-4 h-4" /> <span className="capitalize font-bold text-slate-600">Fazer download</span></label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-slate-400">Intervalo (min)</span>
-                        <input type="number" min="1" className="w-20 bg-[#F8FAFC] border border-slate-200 rounded-lg p-2 text-sm" value={autoBackupIntervalMins} onChange={(e) => setAutoBackupIntervalMins(Number(e.target.value) || 1)} />
-                      </div>
+                      {appLogo && <button onClick={() => setAppLogo(null)} className="text-xs text-rose-600 font-bold px-2 py-1 hover:bg-rose-50 rounded transition-colors">✕</button>}
                     </div>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <button 
-                        onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Download size={14} /> Exportar CSV
-                      </button>
-                      <button 
-                        onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo)}
-                        className="w-full bg-sky-600 hover:bg-sky-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Download size={14} /> Exportar JSON
-                      </button>
-                    </div>
-                    <label className="flex-1 cursor-pointer">
-                      <span className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold text-xs capitalize tracking-wider shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2 w-full">
-                        <FileUp size={14} /> Importar (CSV / JSON)
-                      </span>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept=".csv,.json"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            try {
-                              const text = reader.result;
-                              if (file.name.toLowerCase().endsWith('.json') || (typeof text === 'string' && text.trim().startsWith('{'))) {
-                                // JSON import
-                                const result = restoreDataFromJSON(text, {
-                                  setRecurrentItems,
-                                  setMonthlyData,
-                                  setGoals,
-                                  setInstallments,
-                                  setAppTitle,
-                                  setAppLogo
-                                });
-                                if (result.success) alert('✅ JSON importado com sucesso!');
-                                else alert(`❌ Erro ao importar JSON: ${result.message}`);
-                              } else {
-                                // CSV import
-                                const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(text);
-                                setMonthlyData({ ...monthlyData, ...newMonthlyData });
-                                setRecurrentItems([...recurrentItems, ...newRecurrentItems]);
-                                alert(`✅ Importados ${importedCount} registros com sucesso!`);
-                              }
-                            } catch (err) {
-                              alert(`❌ Erro ao importar: ${err.message}`);
-                            }
-                          };
-                          reader.readAsText(file);
-                        }}
-                      />
-                    </label>
                   </div>
                 </div>
+              </div>
 
-                <button onClick={() => setShowSettings(false)} className="w-full bg-[#111827] text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl active:scale-95 transition-all mt-3">Pronto</button>
-                
-                {/* BOTÃO RECUPERAR DADOS */}
+              {/* SEÇÃO 2: DADOS E BACKUP */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                  <span className="text-2xl">💾</span>
+                  <h3 className="text-lg font-bold text-slate-800">Dados e Backup</h3>
+                </div>
+
+                {/* Backup Automático */}
+                <div className="bg-gradient-to-r from-blue-50 to-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <input type="checkbox" checked={autoBackupEnabled} onChange={(e) => setAutoBackupEnabled(e.target.checked)} className="w-4 h-4 cursor-pointer" />
+                      ✅ Ativar Backup Automático
+                    </label>
+                  </div>
+                  {autoBackupEnabled && (
+                    <div className="space-y-3 ml-6">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={autoBackupDownload} onChange={(e) => setAutoBackupDownload(e.target.checked)} className="w-4 h-4 cursor-pointer" />
+                        <span className="text-slate-700 font-medium">📥 Fazer download automático</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-700 font-medium">⏱️ Intervalo (minutos):</span>
+                        <input type="number" min="1" className="w-20 bg-white border border-slate-300 rounded-lg p-2 text-sm font-medium" value={autoBackupIntervalMins} onChange={(e) => setAutoBackupIntervalMins(Number(e.target.value) || 1)} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botões de Export/Import */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => exportToCSV(monthlyData, recurrentItems, installments, goals)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    📊 Exportar CSV
+                  </button>
+                  <button 
+                    onClick={() => exportToJSON(monthlyData, recurrentItems, installments, goals, appTitle, appLogo)}
+                    className="w-full bg-sky-600 hover:bg-sky-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    📄 Exportar JSON
+                  </button>
+                </div>
+
+                <label className="block cursor-pointer">
+                  <span className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2">
+                    📂 Importar (CSV / JSON)
+                  </span>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept=".csv,.json"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        try {
+                          const text = reader.result;
+                          if (file.name.toLowerCase().endsWith('.json') || (typeof text === 'string' && text.trim().startsWith('{'))) {
+                            const result = restoreDataFromJSON(text, {
+                              setRecurrentItems,
+                              setMonthlyData,
+                              setGoals,
+                              setInstallments,
+                              setAppTitle,
+                              setAppLogo
+                            });
+                            if (result.success) alert('✅ JSON importado com sucesso!');
+                            else alert(`❌ Erro ao importar JSON: ${result.message}`);
+                          } else {
+                            const { newMonthlyData, newRecurrentItems, importedCount } = parseCSVData(text);
+                            setMonthlyData({ ...monthlyData, ...newMonthlyData });
+                            setRecurrentItems([...recurrentItems, ...newRecurrentItems]);
+                            alert(`✅ Importados ${importedCount} registros com sucesso!`);
+                          }
+                        } catch (err) {
+                          alert(`❌ Erro ao importar: ${err.message}`);
+                        }
+                      };
+                      reader.readAsText(file);
+                    }}
+                  />
+                </label>
+
                 <button 
                   onClick={() => { setShowSettings(false); setShowRecoveryModal(true); }} 
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-xl active:scale-95 transition-all mt-2 hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  <Database size={16} /> 🔄 Recuperar meus dados
+                  🔄 Recuperar Dados Antigos
                 </button>
-             </div>
+              </div>
+
+              {/* SEÇÃO 3: PROJEÇÃO vs REALIZADO */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                  <span className="text-2xl">📈</span>
+                  <h3 className="text-lg font-bold text-slate-800">Projeção vs Realizado</h3>
+                </div>
+
+                <div className="bg-gradient-to-r from-amber-50 to-amber-50 p-4 rounded-lg border border-amber-200 space-y-4">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    📊 Compare suas projeções de receita e despesa com os valores realmente ocorridos. Ajuste suas estratégias financeiras com base no desempenho atual.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700">📅 Mês</label>
+                      <select className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
+                        {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700">📍 Ano</label>
+                      <input type="number" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700">💰 Projeção</label>
+                      <input type="number" placeholder="Ex: 5000" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                        defaultValue={projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.income || ''}
+                        onChange={(e) => updateProjection(selectedYear, selectedMonth, e.target.value, projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.expense || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-bold text-slate-700">📉 Despesa Projetada</label>
+                      <input type="number" placeholder="Ex: 2000" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-amber-500 outline-none"
+                        defaultValue={projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.expense || ''}
+                        onChange={(e) => updateProjection(selectedYear, selectedMonth, projections[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`]?.income || 0, e.target.value)}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <div className="h-full flex flex-col justify-end">
+                        <button onClick={() => {
+                          const key = `${selectedYear}-${String(selectedMonth).padStart(2,'0')}`;
+                          const proj = projections[key];
+                          const monthData = monthlyData[`${selectedYear}-${String(selectedMonth).padStart(2,'0')}`] || [];
+                          const realized = {
+                            income: monthData.filter(m => m.type === 'receita').reduce((a, b) => a + (b.value || 0), 0),
+                            expense: monthData.filter(m => m.type === 'despesa').reduce((a, b) => a + (b.value || 0), 0)
+                          };
+
+                          const incomeMatch = proj && Math.abs(proj.income - realized.income) < 1;
+                          const expenseMatch = proj && Math.abs(proj.expense - realized.expense) < 1;
+
+                          let msg = `📊 Comparativo de ${MONTHS[selectedMonth - 1]}/${selectedYear}:\n\n`;
+                          msg += `💰 Receita:\n`;
+                          msg += `  Projetado: R$ ${proj?.income.toFixed(2) || 'Não definido'}\n`;
+                          msg += `  Realizado: R$ ${realized.income.toFixed(2)}\n`;
+                          msg += `  ${incomeMatch ? '✅ BATEU!' : `❌ Diferença: R$ ${Math.abs((proj?.income || 0) - realized.income).toFixed(2)}`}\n\n`;
+                          msg += `📉 Despesa:\n`;
+                          msg += `  Projetado: R$ ${proj?.expense.toFixed(2) || 'Não definido'}\n`;
+                          msg += `  Realizado: R$ ${realized.expense.toFixed(2)}\n`;
+                          msg += `  ${expenseMatch ? '✅ BATEU!' : `❌ Diferença: R$ ${Math.abs((proj?.expense || 0) - realized.expense).toFixed(2)}`}`;
+
+                          alert(msg);
+                        }} className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all">
+                          🔍 Comparar com Realizado
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* FOOTER */}
+            <div className="flex gap-3 p-6 bg-slate-50 border-t border-slate-200 rounded-b-3xl">
+              <button onClick={() => setShowSettings(false)} className="flex-1 bg-[#111827] text-white py-3 rounded-lg font-bold text-sm capitalize tracking-wider shadow-md active:scale-95 transition-all hover:bg-slate-900">
+                ✅ Pronto
+              </button>
+            </div>
           </div>
         </div>
       )}
