@@ -1055,6 +1055,123 @@ const App = () => {
               </div>
             </div>
 
+            {/* PROJEÇÃO vs REALIZADO */}
+            {(() => {
+              const key = `${year}-${String(month).padStart(2,'0')}`;
+              const proj = projections[key];
+              const monthEntries = monthlyData[key] || [];
+              const realized = {
+                income: monthEntries.filter(m => m.type === 'ENTRADA').reduce((a, b) => a + (parseFloat(b.amount) || 0), 0),
+                expense: monthEntries.filter(m => m.type === 'SAIDA').reduce((a, b) => a + (parseFloat(b.amount) || 0), 0)
+              };
+              realized.income += recurrentItems.filter(r=>r.type==='ENTRADA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+              realized.expense += recurrentItems.filter(r=>r.type==='SAIDA').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+              realized.expense += installments.reduce((s,inst)=>s+getMonthlyInstallmentAmount(inst, year, month),0);
+
+              const hasProjection = proj && (proj.income > 0 || proj.expense > 0);
+
+              if (!hasProjection) return null;
+
+              const incomeMatch = Math.abs(proj.income - realized.income) < 1;
+              const expenseMatch = Math.abs(proj.expense - realized.expense) < 1;
+              const incomeDiff = Math.abs(proj.income - realized.income);
+              const expenseDiff = Math.abs(proj.expense - realized.expense);
+
+              return (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200 shadow-sm overflow-hidden p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">📈</span>
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-900">Projeção vs Realizado</h3>
+                      <p className="text-xs text-amber-700">{MONTHS[month - 1]} de {year}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* RECEITA */}
+                    <div className="bg-white rounded-lg border border-amber-100 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">💰 Receita</span>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${incomeMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {incomeMatch ? '✅ BATEU!' : `❌ ${incomeDiff > 0 ? 'Diferença' : 'OK'}`}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-600 font-medium">Projetado:</span>
+                          <span className="text-sm font-bold text-slate-700">{formatCurrency(proj.income)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-600 font-medium">Realizado:</span>
+                          <span className="text-sm font-bold text-emerald-700">{formatCurrency(realized.income)}</span>
+                        </div>
+                        {incomeDiff > 0 && (
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                            <span className="text-xs text-slate-600 font-medium">Diferença:</span>
+                            <span className={`text-sm font-bold ${realized.income > proj.income ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {realized.income > proj.income ? '+' : '-'}{formatCurrency(incomeDiff)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* DESPESA */}
+                    <div className="bg-white rounded-lg border border-amber-100 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">📉 Despesa</span>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${expenseMatch ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {expenseMatch ? '✅ BATEU!' : `❌ ${expenseDiff > 0 ? 'Diferença' : 'OK'}`}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-600 font-medium">Projetada:</span>
+                          <span className="text-sm font-bold text-slate-700">{formatCurrency(proj.expense)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-slate-600 font-medium">Realizada:</span>
+                          <span className="text-sm font-bold text-rose-700">{formatCurrency(realized.expense)}</span>
+                        </div>
+                        {expenseDiff > 0 && (
+                          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                            <span className="text-xs text-slate-600 font-medium">Diferença:</span>
+                            <span className={`text-sm font-bold ${realized.expense > proj.expense ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {realized.expense > proj.expense ? '+' : '-'}{formatCurrency(expenseDiff)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SALDO COMPARATIVO */}
+                  <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <span className="text-xs text-blue-600 font-bold uppercase block">Saldo Projetado</span>
+                        <span className="text-lg font-bold text-blue-700 mt-1">{formatCurrency(proj.income - proj.expense)}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-blue-600 font-bold uppercase block">Saldo Real</span>
+                        <span className={`text-lg font-bold mt-1 ${realized.income - realized.expense >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {formatCurrency(realized.income - realized.expense)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-xs text-blue-600 font-bold uppercase block">Variação</span>
+                        <span className={`text-lg font-bold mt-1 ${(realized.income - realized.expense) >= (proj.income - proj.expense) ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {formatCurrency(Math.abs((realized.income - realized.expense) - (proj.income - proj.expense)))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-amber-700 text-center italic">💡 Ajuste suas projeções nas configurações para acompanhar melhor seu desempenho financeiro</p>
+                </div>
+              );
+            })()}
+
             {/* LISTAGEM PRINCIPAL */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col font-medium">
               <div className="px-5 py-4 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-3">
